@@ -1,7 +1,9 @@
 package main
 
 import (
+	"log/slog"
 	"net/http"
+	"os"
 
 	"github.com/labstack/echo/v5"
 	"github.com/labstack/echo/v5/middleware"
@@ -27,23 +29,33 @@ import (
 // @name Authorization
 // @description Nhập `Bearer {access token}`.
 func main() {
+	if err := run(); err != nil {
+		slog.Error("application stopped", "error", err)
+		os.Exit(1)
+	}
+}
+
+func run() error {
 	cfg, err := config.Load()
 	if err != nil {
-		panic(err)
+		return err
 	}
 	log, err := logger.New(cfg.LogLevel, cfg.LogFormat)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	database, err := db.Connect(db.Options{
 		DSN:          cfg.DatabaseURL,
 		MaxOpenConns: cfg.DBMaxOpenConns,
 		MaxIdleConns: cfg.DBMaxIdleConns,
+		LogSQL:       cfg.DBLogSQL,
+		Colorful:     cfg.DBLogColorful,
 	})
 	if err != nil {
-		panic(err)
+		return err
 	}
+	defer func() { _ = db.Close(database) }()
 
 	e := echo.New()
 	e.Logger = log
@@ -54,7 +66,7 @@ func main() {
 	e.Use(middleware.Recover())
 
 	e.GET("/swaggers", func(c *echo.Context) error {
-		return c.Redirect(http.StatusMovedPermanently, "/swaggers/index.html")
+		return c.Redirect(http.StatusFound, "/swaggers/index.html")
 	})
 	e.GET("/swaggers/*", echoSwagger.WrapHandler)
 
@@ -62,7 +74,5 @@ func main() {
 	healthService := services.NewHealthService(healthRepository)
 	handlers.RegisterRoutes(e, healthService)
 
-	if err := e.Start(cfg.HTTPAddr); err != nil {
-		e.Logger.Error("failed to start server", "error", err)
-	}
+	return e.Start(cfg.HTTPAddr)
 }

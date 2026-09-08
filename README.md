@@ -1,6 +1,6 @@
 # Cinema Booking API
 
-Backend web đặt vé rạp chiếu phim viết bằng Go, Echo v5, GORM v2 và PostgreSQL 15. Code tổ chức theo luồng `handler → service → repository`, có Swagger UI tại `/docs`.
+Backend web đặt vé rạp chiếu phim viết bằng Go, Echo v5, GORM v2 và PostgreSQL 15. Code tổ chức theo luồng `handler → service → repository`, có Swagger UI tại `/swaggers`.
 
 ## Yêu cầu
 
@@ -57,8 +57,9 @@ Kiểm tra: `curl localhost:8080/api/health` → `{"status":"ok"}`; Swagger UI: 
 | `HTTP_ADDR` | `:8080` | Địa chỉ HTTP |
 | `DATABASE_URL` | bắt buộc | PostgreSQL URL |
 | `DB_MAX_OPEN_CONNS` / `DB_MAX_IDLE_CONNS` | `25` / `5` | Pool |
+| `DB_LOG_SQL` | `false` | `true` log mọi câu SQL; mặc định chỉ log lỗi và query > 200ms |
 | `LOG_LEVEL` | `info` | `debug` `info` `warn` `error` |
-| `LOG_FORMAT` | `text` | `text` hoặc `json` |
+| `LOG_FORMAT` | `text` | `text` (dev, log SQL có màu) hoặc `json` (prod, không màu) |
 | `POSTGRES_*` | `cinema` / `5434` | Chỉ dùng bởi Docker Compose |
 
 ## Quy ước
@@ -84,8 +85,3 @@ Trong handler: bind + validate bằng `utils.BindAndValidate(c, &req)`; lỗi t�
 
 - File `migrations/YYYYMMDDNNNN_mo_ta.go`, `ID` trùng tiền tố; thêm vào danh sách trong `migrations.go` theo thứ tự.
 - Mỗi `tx.Exec` chỉ một câu SQL (pgx extended protocol không nhận nhiều câu). Luôn viết `Rollback`.
-
-### Code
-
-- Không viết comment trong code; tên hàm, biến tự mô tả. Ngoại lệ duy nhất là annotation Swagger `// @...`.
-- Không commit `.env`, `.claude/`, `ai-docs/`, `plans/`. Tài liệu dự án nằm trong `.claude/docs/`, kế hoạch trong `plans/`.

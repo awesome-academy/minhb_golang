@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -15,6 +16,8 @@ type Options struct {
 	DSN          string
 	MaxOpenConns int
 	MaxIdleConns int
+	LogSQL       bool
+	Colorful     bool
 }
 
 func Connect(opts Options) (*gorm.DB, error) {
@@ -22,18 +25,24 @@ func Connect(opts Options) (*gorm.DB, error) {
 		return nil, fmt.Errorf("database DSN is empty")
 	}
 
+	logLevel := logger.Warn
+	if opts.LogSQL {
+		logLevel = logger.Info
+	}
+
 	database, err := gorm.Open(postgres.Open(opts.DSN), &gorm.Config{
 		Logger: logger.New(
-			log.New(os.Stdout, "\r\n", log.LstdFlags),
+			log.New(os.Stdout, "", log.LstdFlags),
 			logger.Config{
 				SlowThreshold:             200 * time.Millisecond,
-				LogLevel:                  logger.Info,
+				LogLevel:                  logLevel,
 				IgnoreRecordNotFoundError: true,
 				ParameterizedQueries:      true,
-				Colorful:                  true,
+				Colorful:                  opts.Colorful,
 			},
 		),
-		NowFunc: func() time.Time { return time.Now().UTC() },
+		NowFunc:              func() time.Time { return time.Now().UTC() },
+		DisableAutomaticPing: true,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("open PostgreSQL connection: %w", err)
@@ -48,7 +57,9 @@ func Connect(opts Options) (*gorm.DB, error) {
 	sqlDB.SetConnMaxLifetime(time.Hour)
 	sqlDB.SetConnMaxIdleTime(10 * time.Minute)
 
-	if err := sqlDB.Ping(); err != nil {
+	pingCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := sqlDB.PingContext(pingCtx); err != nil {
 		return nil, fmt.Errorf("ping PostgreSQL: %w", err)
 	}
 

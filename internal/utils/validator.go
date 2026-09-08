@@ -45,6 +45,10 @@ func (rv *RequestValidator) Validate(i any) error {
 		})
 	}
 
+	if len(details) == 0 {
+		return APIErrorFrom(http.StatusBadRequest, "request validation failed", err)
+	}
+
 	return ValidationError{
 		ErrorCode:    http.StatusBadRequest,
 		ErrorMessage: details[0].Message,

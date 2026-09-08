@@ -22,6 +22,8 @@ func main() {
 		DSN:          cfg.DatabaseURL,
 		MaxOpenConns: 2,
 		MaxIdleConns: 1,
+		LogSQL:       cfg.DBLogSQL,
+		Colorful:     cfg.DBLogColorful,
 	})
 	if err != nil {
 		fail(err)
