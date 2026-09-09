@@ -18,7 +18,9 @@ api/swagger/             # Swagger spec sinh tự động — không sửa tay
 migrations/              # gormigrate, mỗi migration là raw SQL trong file Go (7 migration: extension, enum, 12 bảng)
 internal/
 ├── dto/                 # Request/response DTO (json + validate + example tags)
-├── handlers/            # Echo handlers, routes, HTTP error handler
+├── handlers/            # routes.go duy nhất đăng ký mọi route, health handler, HTTP error handler
+│   ├── admin/           # Handler admin SSR (package admin)
+│   └── user/            # Handler REST API cho user (package user, thêm từ U1)
 ├── models/              # GORM model
 ├── repositories/        # Truy vấn GORM
 ├── services/            # Business logic
@@ -26,6 +28,9 @@ internal/
 pkg/
 ├── db/                  # Kết nối GORM/pgx, pool
 └── logger/              # Khởi tạo slog
+web/                     # Admin SSR: template html/template + static CSS, embed vào binary
+├── templates/admin/     # layout.html + một file mỗi trang (login.html...)
+└── static/              # admin.css
 ```
 
 ## Chạy local
@@ -37,7 +42,7 @@ go run ./cmd/migrate -direction=up         # tạo extension, enum và 12 bảng
 go run ./cmd/app                           # API tại http://localhost:8080
 ```
 
-Kiểm tra: `curl localhost:8080/api/health` → `{"status":"ok"}`; Swagger UI: http://localhost:8080/docs.
+Kiểm tra: `curl localhost:8080/api/health` → `{"status":"ok"}`; Swagger UI: http://localhost:8080/swaggers; trang admin: http://localhost:8080/admin/login.
 
 ## Lệnh thường dùng
 
@@ -68,6 +73,13 @@ Kiểm tra: `curl localhost:8080/api/health` → `{"status":"ok"}`; Swagger UI: 
 ### API
 
 - Endpoint chi tiết nhận `id` (`/api/movies/:id`, `/api/theaters/:id`, `/api/bookings/:id`), không dùng `slug`. `slug` chỉ là dữ liệu trả về cho FE dựng URL.
+
+### Admin SSR
+
+- Template trong `web/templates/admin/`: `layout.html` định nghĩa `layout` và `{{block "content" .}}`; mỗi trang một file `{{define "content"}}`, được parse riêng cùng layout và gọi bằng `c.Render(200, "admin/<tên file>", data)`.
+- Thêm trang mới: tạo file `.html` trong thư mục đó, không cần sửa Go. Sửa template phải chạy lại app (embed).
+- CSS dùng Bootstrap 5.3 qua CDN + `web/static/admin.css` (tông trung tính, không hiệu ứng). Không thêm JS khi chưa cần.
+- Mọi text hiển thị trên UI (label, nút, tiêu đề, thông báo lỗi) viết bằng tiếng Anh; `<html lang="en">`.
 
 ### Lỗi trả về
 

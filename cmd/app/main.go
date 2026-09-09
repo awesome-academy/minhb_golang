@@ -17,6 +17,7 @@ import (
 	"cinema-booking/internal/utils"
 	"cinema-booking/pkg/db"
 	"cinema-booking/pkg/logger"
+	"cinema-booking/web"
 )
 
 // @title Cinema Booking API
@@ -57,10 +58,17 @@ func run() error {
 	}
 	defer func() { _ = db.Close(database) }()
 
+	templates, err := web.ParseTemplates()
+	if err != nil {
+		return err
+	}
+
 	e := echo.New()
 	e.Logger = log
 	e.HTTPErrorHandler = handlers.HTTPErrorHandler
 	e.Validator = utils.NewRequestValidator()
+	e.Renderer = &echo.TemplateRenderer{Template: templates}
+	e.StaticFS("/static", echo.MustSubFS(web.Files, "static"))
 
 	e.Use(middleware.RequestLogger())
 	e.Use(middleware.Recover())

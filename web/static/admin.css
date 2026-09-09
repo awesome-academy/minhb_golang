@@ -1,0 +1,19 @@
+body {
+  background-color: #f5f6f8;
+  color: #212529;
+}
+
+.login-card {
+  max-width: 24rem;
+  margin: 4rem auto;
+  border-color: #dee2e6;
+}
+
+.card {
+  box-shadow: none;
+}
+
+.form-control:focus {
+  border-color: #6c757d;
+  box-shadow: 0 0 0 0.2rem rgba(108, 117, 125, 0.2);
+}
