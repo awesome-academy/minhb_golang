@@ -1,0 +1,49 @@
+basePath: /api
+definitions:
+  dto.HealthResponse:
+    properties:
+      status:
+        example: ok
+        type: string
+    type: object
+  utils.APIErrorResponse:
+    properties:
+      errorCode:
+        example: 404
+        type: integer
+      errorMessage:
+        example: resource not found
+        type: string
+    type: object
+info:
+  contact: {}
+  description: REST API cho web đặt vé rạp chiếu phim.
+  title: Cinema Booking API
+  version: "1.0"
+paths:
+  /health:
+    get:
+      description: Returns 200 when the API can reach PostgreSQL, 503 otherwise.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.HealthResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+      summary: Health check
+      tags:
+      - system
+schemes:
+- http
+securityDefinitions:
+  BearerAuth:
+    description: Nhập `Bearer {access token}`.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
