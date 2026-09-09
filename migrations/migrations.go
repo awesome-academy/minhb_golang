@@ -23,6 +23,23 @@ func New(db *gorm.DB) *gormigrate.Gormigrate {
 			UseTransaction:            true,
 			ValidateUnknownMigrations: true,
 		},
-		[]*gormigrate.Migration{},
+		[]*gormigrate.Migration{
+			migrationEnableExtensions(),
+			migrationCreateEnums(),
+			migrationCreateUsers(),
+			migrationCreateMoviesAndGenres(),
+			migrationCreateTheatersRoomsSeats(),
+			migrationCreateShowtimesAndPrices(),
+			migrationCreateBookingsAndTickets(),
+		},
 	)
+}
+
+func execAll(tx *gorm.DB, statements ...string) error {
+	for _, statement := range statements {
+		if err := tx.Exec(statement).Error; err != nil {
+			return err
+		}
+	}
+	return nil
 }

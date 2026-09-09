@@ -15,10 +15,11 @@ cmd/
 └── migrate/             # CLI chạy migration up/down
 config/                  # Load .env / biến môi trường
 api/swagger/             # Swagger spec sinh tự động — không sửa tay
-migrations/              # gormigrate, mỗi migration là raw SQL trong file Go (chưa có migration nào)
+migrations/              # gormigrate, mỗi migration là raw SQL trong file Go (7 migration: extension, enum, 12 bảng)
 internal/
 ├── dto/                 # Request/response DTO (json + validate + example tags)
 ├── handlers/            # Echo handlers, routes, HTTP error handler
+├── models/              # GORM model
 ├── repositories/        # Truy vấn GORM
 ├── services/            # Business logic
 └── utils/               # Error response thống nhất, validator
@@ -32,7 +33,7 @@ pkg/
 ```bash
 cp .env.example .env                       # mặc định khớp docker-compose
 docker compose up -d cinema-postgres       # PostgreSQL 15 tại localhost:5434
-go run ./cmd/migrate -direction=up         # chạy migration (danh sách hiện rỗng → báo "No migration defined", sẽ có từ S3)
+go run ./cmd/migrate -direction=up         # tạo extension, enum và 12 bảng theo thiết kế
 go run ./cmd/app                           # API tại http://localhost:8080
 ```
 
@@ -64,6 +65,10 @@ Kiểm tra: `curl localhost:8080/api/health` → `{"status":"ok"}`; Swagger UI: 
 
 ## Quy ước
 
+### API
+
+- Endpoint chi tiết nhận `id` (`/api/movies/:id`, `/api/theaters/:id`, `/api/bookings/:id`), không dùng `slug`. `slug` chỉ là dữ liệu trả về cho FE dựng URL.
+
 ### Lỗi trả về
 
 Mọi lỗi đều là JSON cùng dạng, do `internal/handlers/error_handler.go` render:
@@ -84,4 +89,11 @@ Trong handler: bind + validate bằng `utils.BindAndValidate(c, &req)`; lỗi t�
 ### Migration
 
 - File `migrations/YYYYMMDDNNNN_mo_ta.go`, `ID` trùng tiền tố; thêm vào danh sách trong `migrations.go` theo thứ tự.
-- Mỗi `tx.Exec` chỉ một câu SQL (pgx extended protocol không nhận nhiều câu). Luôn viết `Rollback`.
+- Mỗi `tx.Exec` chỉ một câu SQL (pgx extended protocol không nhận nhiều câu); nhiều câu dùng `execAll(tx, ...)`. Luôn viết `Rollback` theo thứ tự ngược.
+- Ràng buộc nghiệp vụ nằm ở DB (`showtimes_no_overlap`, `tickets_one_active_per_seat`, `users_email_lower_key`, composite FK `tickets_booking_id_showtime_id_fkey`); tên constraint dùng để map lỗi Postgres sau này.
+
+### Model
+
+- `internal/models`, một file một bảng; ID `int64`, cột nullable dùng pointer, enum Postgres là kiểu `string` có const (`models.UserRoleAdmin`).
+- Tiền `numeric(12,2)` dùng `decimal.Decimal` (shopspring); `cast_members` jsonb là `models.CastMembers` (tự Scan/Value); soft delete qua `gorm.DeletedAt`.
+- Tag `default:` phản chiếu DEFAULT của DB nên `Create` không cần set `Role`, `Status`, `Format`, `Currency`, `QRCode`. Riêng `IsActive` (bool) không có tag `default` vì GORM sẽ ghi đè `false` thành `true`; service phải set `IsActive` tường minh khi tạo.
