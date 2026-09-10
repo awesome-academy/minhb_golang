@@ -18,6 +18,7 @@ import (
 	"cinema-booking/internal/utils"
 	"cinema-booking/pkg/db"
 	"cinema-booking/pkg/logger"
+	redisclient "cinema-booking/pkg/redis"
 	"cinema-booking/web"
 )
 
@@ -59,12 +60,18 @@ func run() error {
 	}
 	defer func() { _ = db.Close(database) }()
 
+	redisClient, err := redisclient.Connect(cfg.RedisURL)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = redisclient.Close(redisClient) }()
+
 	templates, err := web.ParseTemplates()
 	if err != nil {
 		return err
 	}
 
-	e := echo.New()
+	e := echo.NewWithConfig(echo.Config{NoGroupAutoRegister404Routes: true})
 	e.Logger = log
 	e.HTTPErrorHandler = handlers.HTTPErrorHandler
 	e.Validator = utils.NewRequestValidator()
@@ -73,6 +80,7 @@ func run() error {
 
 	e.Use(middleware.RequestLogger())
 	e.Use(middleware.Recover())
+	e.Use(appmw.AdminNoStore())
 	e.Use(appmw.AdminCSRF())
 
 	e.GET("/swaggers", func(c *echo.Context) error {
@@ -80,9 +88,21 @@ func run() error {
 	})
 	e.GET("/swaggers/*", echoSwagger.WrapHandler)
 
+	// Repositories
 	healthRepository := repositories.NewHealthRepository(database)
+	userRepository := repositories.NewUserRepository(database)
+	adminSessionRepository := repositories.NewAdminSessionRepository(redisClient, cfg.AdminSessionTTL)
+
+	// Services
 	healthService := services.NewHealthService(healthRepository)
-	handlers.RegisterRoutes(e, healthService)
+	adminAuthService := services.NewAdminAuthService(userRepository, adminSessionRepository)
+
+	// Middleware
+	adminCookie := appmw.AdminSessionCookie{Secure: cfg.AdminCookieSecure, TTL: cfg.AdminSessionTTL}
+	adminSession := appmw.RequireAdminSession(adminCookie, adminSessionRepository, userRepository)
+
+	// Handlers
+	handlers.RegisterRoutes(e, healthService, adminAuthService, adminCookie, adminSession)
 
 	return e.Start(cfg.HTTPAddr)
 }
