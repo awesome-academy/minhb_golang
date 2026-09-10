@@ -12,6 +12,7 @@ import (
 	_ "cinema-booking/api/swagger"
 	"cinema-booking/config"
 	"cinema-booking/internal/handlers"
+	appmw "cinema-booking/internal/middleware"
 	"cinema-booking/internal/repositories"
 	"cinema-booking/internal/services"
 	"cinema-booking/internal/utils"
@@ -72,6 +73,7 @@ func run() error {
 
 	e.Use(middleware.RequestLogger())
 	e.Use(middleware.Recover())
+	e.Use(appmw.AdminCSRF())
 
 	e.GET("/swaggers", func(c *echo.Context) error {
 		return c.Redirect(http.StatusFound, "/swaggers/index.html")

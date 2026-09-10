@@ -9,11 +9,16 @@ body {
   border-color: #dee2e6;
 }
 
-.card {
-  box-shadow: none;
-}
-
 .form-control:focus {
   border-color: #6c757d;
   box-shadow: 0 0 0 0.2rem rgba(108, 117, 125, 0.2);
+}
+
+.error-page {
+  min-height: calc(100vh - 8rem);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  font-weight: 700;
 }

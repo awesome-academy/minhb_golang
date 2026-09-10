@@ -18,6 +18,7 @@ api/swagger/             # Swagger spec sinh tự động — không sửa tay
 migrations/              # gormigrate, mỗi migration là raw SQL trong file Go (7 migration: extension, enum, 12 bảng)
 internal/
 ├── dto/                 # Request/response DTO (json + validate + example tags)
+├── middleware/          
 ├── handlers/            # routes.go duy nhất đăng ký mọi route, health handler, HTTP error handler
 │   ├── admin/           # Handler admin SSR (package admin)
 │   └── user/            # Handler REST API cho user (package user, thêm từ U1)
@@ -29,8 +30,8 @@ pkg/
 ├── db/                  # Kết nối GORM/pgx, pool
 └── logger/              # Khởi tạo slog
 web/                     # Admin SSR: template html/template + static CSS, embed vào binary
-├── templates/admin/     # layout.html + một file mỗi trang (login.html...)
-└── static/              # admin.css
+├── templates/admin/     # layout.html + một file mỗi trang (login.html...), cho phép thư mục con
+└── static/              # bootstrap.min.css (5.3.3, vendored) + admin.css
 ```
 
 ## Chạy local
@@ -76,14 +77,17 @@ Kiểm tra: `curl localhost:8080/api/health` → `{"status":"ok"}`; Swagger UI: 
 
 ### Admin SSR
 
-- Template trong `web/templates/admin/`: `layout.html` định nghĩa `layout` và `{{block "content" .}}`; mỗi trang một file `{{define "content"}}`, được parse riêng cùng layout và gọi bằng `c.Render(200, "admin/<tên file>", data)`.
-- Thêm trang mới: tạo file `.html` trong thư mục đó, không cần sửa Go. Sửa template phải chạy lại app (embed).
-- CSS dùng Bootstrap 5.3 qua CDN + `web/static/admin.css` (tông trung tính, không hiệu ứng). Không thêm JS khi chưa cần.
+- Template trong `web/templates/admin/`: `layout.html` định nghĩa `layout` và `{{block "content" .}}`; mỗi trang một file `{{define "content"}}`, được parse riêng cùng layout và gọi bằng `c.Render(200, "admin/<đường dẫn không .html>", view)` (ví dụ `admin/login`, `admin/movies/list`).
+- Thêm trang mới: tạo file `.html` và một view struct khai báo ngay trong file handler tương ứng (có `Title`, và `CSRFToken` nếu trang có form). Không dùng `map[string]any`; template bật `missingkey=error`. Sửa template phải chạy lại app (embed).
+- CSS: Bootstrap 5.3.3 vendored tại `web/static/bootstrap.min.css` (không CDN, chạy offline) + `admin.css` tông trung tính. Không thêm JS khi chưa cần.
+- Route admin: `e.Group("/admin")`, hiện chỉ `GET /login`. CSRF gắn toàn cục `e.Use(appmw.AdminCSRF())` với Skipper bỏ qua mọi path ngoài `/admin` (không gắn ở group, vì group có middleware sẽ tự thêm catch-all làm sai method trả 404 thay vì 405).
+- Lỗi dưới `/admin` (404 sai path, 405 sai method, 400 CSRF, 500...) render `admin/error.html`
+- CSRF: token đọc từ form `_csrf` hoặc header `X-CSRF-Token`, cookie `_csrf` HttpOnly, SameSite=Lax, path `/admin`. Mọi form admin phải có `<input type="hidden" name="_csrf" value="{{.CSRFToken}}">`.
 - Mọi text hiển thị trên UI (label, nút, tiêu đề, thông báo lỗi) viết bằng tiếng Anh; `<html lang="en">`.
 
 ### Lỗi trả về
 
-Mọi lỗi đều là JSON cùng dạng, do `internal/handlers/error_handler.go` render:
+Mọi lỗi đều là JSON cùng dạng, do `internal/handlers/error_handler.go` render (riêng path `/admin`, `/admin/*` render trang HTML `admin/error.html` cùng status code):
 
 ```json
 {"errorCode": 404, "errorMessage": "resource not found"}

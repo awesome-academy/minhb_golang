@@ -7,18 +7,23 @@ import (
 
 	"github.com/labstack/echo/v5"
 
+	"cinema-booking/internal/middleware"
 	"cinema-booking/internal/utils"
 )
+
+type adminErrorView struct {
+	Title string
+}
 
 func HTTPErrorHandler(c *echo.Context, err error) {
 	if response, unwrapErr := echo.UnwrapResponse(c.Response()); unwrapErr == nil && response.Committed {
 		return
 	}
 
-	statusCode := http.StatusInternalServerError
-	var statusCoder echo.HTTPStatusCoder
-	if errors.As(err, &statusCoder) && statusCoder.StatusCode() != 0 {
-		statusCode = statusCoder.StatusCode()
+	statusCode := statusCodeOf(err)
+	if middleware.IsAdminPath(c.Request().URL.Path) {
+		renderAdminError(c, statusCode)
+		return
 	}
 
 	var marshaler json.Marshaler
@@ -27,13 +32,38 @@ func HTTPErrorHandler(c *echo.Context, err error) {
 		return
 	}
 
-	message := http.StatusText(statusCode)
-	var httpError *echo.HTTPError
-	if errors.As(err, &httpError) && httpError.Message != "" && statusCode < http.StatusInternalServerError {
-		message = httpError.Message
-	}
+	writeJSON(c, statusCode, utils.APIError(statusCode, errorMessage(err, statusCode)))
+}
 
-	writeJSON(c, statusCode, utils.APIError(statusCode, message))
+func statusCodeOf(err error) int {
+	var statusCoder echo.HTTPStatusCoder
+	if errors.As(err, &statusCoder) && statusCoder.StatusCode() != 0 {
+		return statusCoder.StatusCode()
+	}
+	return http.StatusInternalServerError
+}
+
+func errorMessage(err error, statusCode int) string {
+	if statusCode >= http.StatusInternalServerError {
+		return http.StatusText(statusCode)
+	}
+	var httpError *echo.HTTPError
+	if errors.As(err, &httpError) && httpError.Message != "" {
+		return httpError.Message
+	}
+	var apiError utils.APIErrorResponse
+	if errors.As(err, &apiError) && apiError.ErrorMessage != "" {
+		return apiError.ErrorMessage
+	}
+	return http.StatusText(statusCode)
+}
+
+func renderAdminError(c *echo.Context, statusCode int) {
+	view := adminErrorView{Title: "Something went wrong"}
+	if err := c.Render(statusCode, "admin/error", view); err != nil {
+		c.Logger().Error("failed to render admin error page", "error", err)
+		writeJSON(c, statusCode, utils.APIError(statusCode, http.StatusText(statusCode)))
+	}
 }
 
 func writeJSON(c *echo.Context, statusCode int, body any) {

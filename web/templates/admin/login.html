@@ -9,6 +9,7 @@
     {{end}}
 
     <form method="post" action="/admin/login" novalidate>
+      <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
       <div class="mb-3">
         <label for="email" class="form-label">Email</label>
         <input type="email" class="form-control" id="email" name="email" value="{{.Email}}" autocomplete="username" required autofocus>

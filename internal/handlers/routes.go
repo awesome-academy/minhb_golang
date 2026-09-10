@@ -4,6 +4,7 @@ import (
 	"github.com/labstack/echo/v5"
 
 	"cinema-booking/internal/handlers/admin"
+	"cinema-booking/internal/middleware"
 	"cinema-booking/internal/services"
 )
 
@@ -11,7 +12,7 @@ func RegisterRoutes(e *echo.Echo, healthService services.HealthService) {
 	api := e.Group("/api")
 	registerHealthRoutes(api, NewHealthHandler(healthService))
 
-	adminGroup := e.Group("/admin")
+	adminGroup := e.Group(middleware.AdminPathPrefix)
 	registerAdminRoutes(adminGroup, admin.NewAuthHandler())
 }
 

@@ -2,6 +2,7 @@ package web
 
 import (
 	"embed"
+	"errors"
 	"fmt"
 	"html/template"
 	"io"
@@ -13,27 +14,36 @@ import (
 //go:embed templates static
 var Files embed.FS
 
-const layoutFile = "templates/admin/layout.html"
+const (
+	templatesRoot = "templates"
+	adminRoot     = "templates/admin"
+	layoutFile    = "templates/admin/layout.html"
+)
 
 type Templates map[string]*template.Template
 
 func ParseTemplates() (Templates, error) {
-	pages, err := fs.Glob(Files, "templates/admin/*.html")
+	templates := Templates{}
+	err := fs.WalkDir(Files, adminRoot, func(file string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() || file == layoutFile || path.Ext(file) != ".html" {
+			return nil
+		}
+		parsed, err := template.ParseFS(Files, layoutFile, file)
+		if err != nil {
+			return fmt.Errorf("parse template %s: %w", file, err)
+		}
+		name := strings.TrimSuffix(strings.TrimPrefix(file, templatesRoot+"/"), ".html")
+		templates[name] = parsed.Option("missingkey=error")
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
-
-	templates := Templates{}
-	for _, page := range pages {
-		if page == layoutFile {
-			continue
-		}
-		parsed, err := template.ParseFS(Files, layoutFile, page)
-		if err != nil {
-			return nil, fmt.Errorf("parse template %s: %w", page, err)
-		}
-		name := "admin/" + strings.TrimSuffix(path.Base(page), ".html")
-		templates[name] = parsed
+	if len(templates) == 0 {
+		return nil, errors.New("no admin templates found under " + adminRoot)
 	}
 	return templates, nil
 }
