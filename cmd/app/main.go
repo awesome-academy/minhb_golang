@@ -12,11 +12,13 @@ import (
 	_ "cinema-booking/api/swagger"
 	"cinema-booking/config"
 	"cinema-booking/internal/handlers"
+	appmw "cinema-booking/internal/middleware"
 	"cinema-booking/internal/repositories"
 	"cinema-booking/internal/services"
 	"cinema-booking/internal/utils"
 	"cinema-booking/pkg/db"
 	"cinema-booking/pkg/logger"
+	"cinema-booking/web"
 )
 
 // @title Cinema Booking API
@@ -57,13 +59,21 @@ func run() error {
 	}
 	defer func() { _ = db.Close(database) }()
 
+	templates, err := web.ParseTemplates()
+	if err != nil {
+		return err
+	}
+
 	e := echo.New()
 	e.Logger = log
 	e.HTTPErrorHandler = handlers.HTTPErrorHandler
 	e.Validator = utils.NewRequestValidator()
+	e.Renderer = &echo.TemplateRenderer{Template: templates}
+	e.StaticFS("/static", echo.MustSubFS(web.Files, "static"))
 
 	e.Use(middleware.RequestLogger())
 	e.Use(middleware.Recover())
+	e.Use(appmw.AdminCSRF())
 
 	e.GET("/swaggers", func(c *echo.Context) error {
 		return c.Redirect(http.StatusFound, "/swaggers/index.html")
