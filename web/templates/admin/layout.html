@@ -10,7 +10,8 @@
 <body>
   <header class="border-bottom bg-white">
     <div class="container d-flex align-items-center py-2">
-      <a class="navbar-brand fw-semibold text-dark text-decoration-none" href="/admin/login">Cinema Admin</a>
+      <a class="navbar-brand fw-semibold text-dark text-decoration-none" href="/admin">Cinema Admin</a>
+      {{block "userbar" .}}{{end}}
     </div>
   </header>
   <main class="container py-4">
