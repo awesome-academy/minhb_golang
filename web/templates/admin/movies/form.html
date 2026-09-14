@@ -1,0 +1,135 @@
+{{define "userbar"}}{{template "admin-nav" .}}{{end}}
+{{define "scripts"}}<script src="/static/movie-form.js" defer></script>{{end}}
+
+{{define "content"}}
+<div class="form-card mx-auto">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h1 class="h4 mb-0">{{.Title}}</h1>
+    <a class="text-decoration-none small" href="/admin/movies">Back to movies</a>
+  </div>
+  {{with .Error}}<div class="alert alert-danger py-2">{{.}}</div>{{end}}
+  <form method="post" action="{{.Action}}" novalidate class="card card-body">
+    <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+    {{if .IsEdit}}<input type="hidden" name="updated_at" value="{{.Form.UpdatedAt}}">{{end}}
+
+    <div class="mb-3">
+      <label for="title" class="form-label">Title *</label>
+      <input class="form-control{{if index .Errors "title"}} is-invalid{{end}}" id="title" name="title" value="{{.Form.Title}}" required>
+      {{with index .Errors "title"}}<div class="invalid-feedback">{{.}}</div>{{end}}
+    </div>
+
+    {{if .IsEdit}}
+    <div class="mb-3">
+      <label for="slug" class="form-label">Slug</label>
+      <input class="form-control-plaintext" id="slug" value="{{.Slug}}" readonly>
+    </div>
+    {{end}}
+
+    <div class="mb-3">
+      <label for="original_title" class="form-label">Original title</label>
+      <input class="form-control{{if index .Errors "original_title"}} is-invalid{{end}}" id="original_title" name="original_title" value="{{.Form.OriginalTitle}}">
+      {{with index .Errors "original_title"}}<div class="invalid-feedback">{{.}}</div>{{end}}
+    </div>
+
+    <div class="row g-3 mb-3">
+      <div class="col-md-6">
+        <label for="duration_min" class="form-label">Duration (minutes) *</label>
+        <input class="form-control{{if index .Errors "duration_min"}} is-invalid{{end}}" id="duration_min" name="duration_min" type="number" min="1" value="{{if .Form.DurationMin}}{{.Form.DurationMin}}{{end}}" required>
+        {{with index .Errors "duration_min"}}<div class="invalid-feedback">{{.}}</div>{{end}}
+      </div>
+      <div class="col-md-6">
+        <label for="release_date" class="form-label">Release date *</label>
+        <input class="form-control{{if index .Errors "release_date"}} is-invalid{{end}}" id="release_date" name="release_date" type="date" value="{{.Form.ReleaseDate}}" required>
+        {{with index .Errors "release_date"}}<div class="invalid-feedback">{{.}}</div>{{end}}
+      </div>
+    </div>
+
+    <div class="row g-3 mb-3">
+      <div class="col-md-6">
+        <label for="age_rating" class="form-label">Age rating *</label>
+        <select class="form-select{{if index .Errors "age_rating"}} is-invalid{{end}}" id="age_rating" name="age_rating">
+          {{range .AgeRatings}}<option value="{{.}}" {{if eq . $.Form.AgeRating}}selected{{end}}>{{.}}</option>{{end}}
+        </select>
+        {{with index .Errors "age_rating"}}<div class="invalid-feedback">{{.}}</div>{{end}}
+      </div>
+      <div class="col-md-6">
+        <label for="status" class="form-label">Status *</label>
+        <select class="form-select{{if index .Errors "status"}} is-invalid{{end}}" id="status" name="status">
+          {{range .Statuses}}<option value="{{.}}" {{if eq . $.Form.Status}}selected{{end}}>{{.}}</option>{{end}}
+        </select>
+        {{with index .Errors "status"}}<div class="invalid-feedback">{{.}}</div>{{end}}
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label d-block">Genres</label>
+      {{if .Genres}}
+      {{range .Genres}}
+      <div class="form-check form-check-inline">
+        <input class="form-check-input" type="checkbox" id="genre-{{.ID}}" name="genre_ids" value="{{.ID}}" {{if .Checked}}checked{{end}}>
+        <label class="form-check-label" for="genre-{{.ID}}">{{.Name}}</label>
+      </div>
+      {{end}}
+      {{else}}
+      <div class="text-secondary small">No genres yet. Seed the genres table first.</div>
+      {{end}}
+      {{with index .Errors "genre_ids"}}<div class="text-danger small mt-1">{{.}}</div>{{end}}
+    </div>
+
+    <div class="row g-3 mb-3">
+      <div class="col-md-6">
+        <label for="language" class="form-label">Language</label>
+        <input class="form-control{{if index .Errors "language"}} is-invalid{{end}}" id="language" name="language" value="{{.Form.Language}}">
+        {{with index .Errors "language"}}<div class="invalid-feedback">{{.}}</div>{{end}}
+      </div>
+      <div class="col-md-6">
+        <label for="director" class="form-label">Director</label>
+        <input class="form-control{{if index .Errors "director"}} is-invalid{{end}}" id="director" name="director" value="{{.Form.Director}}">
+        {{with index .Errors "director"}}<div class="invalid-feedback">{{.}}</div>{{end}}
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label for="description" class="form-label">Description</label>
+      <textarea class="form-control{{if index .Errors "description"}} is-invalid{{end}}" id="description" name="description" rows="4">{{.Form.Description}}</textarea>
+      {{with index .Errors "description"}}<div class="invalid-feedback">{{.}}</div>{{end}}
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label d-block">Cast</label>
+      <div id="cast-rows">
+        {{range .Cast}}
+        <div class="cast-row row g-2 mb-2">
+          <div class="col"><input class="form-control" name="cast_name" placeholder="Actor" value="{{.Name}}"></div>
+          <div class="col"><input class="form-control" name="cast_role" placeholder="Character" value="{{.Role}}"></div>
+          <div class="col-auto"><button type="button" class="btn btn-outline-secondary remove-cast">Remove</button></div>
+        </div>
+        {{end}}
+      </div>
+      <button type="button" id="add-cast" class="btn btn-sm btn-outline-dark">Add cast member</button>
+      {{with index .Errors "cast"}}<div class="text-danger small mt-1">{{.}}</div>{{end}}
+    </div>
+
+    <div class="mb-3">
+      <label for="poster_url" class="form-label">Poster URL</label>
+      <input class="form-control{{if index .Errors "poster_url"}} is-invalid{{end}}" id="poster_url" name="poster_url" type="url" value="{{.Form.PosterURL}}">
+      {{with index .Errors "poster_url"}}<div class="invalid-feedback">{{.}}</div>{{end}}
+    </div>
+    <div class="mb-3">
+      <label for="backdrop_url" class="form-label">Backdrop URL</label>
+      <input class="form-control{{if index .Errors "backdrop_url"}} is-invalid{{end}}" id="backdrop_url" name="backdrop_url" type="url" value="{{.Form.BackdropURL}}">
+      {{with index .Errors "backdrop_url"}}<div class="invalid-feedback">{{.}}</div>{{end}}
+    </div>
+    <div class="mb-4">
+      <label for="trailer_url" class="form-label">Trailer URL</label>
+      <input class="form-control{{if index .Errors "trailer_url"}} is-invalid{{end}}" id="trailer_url" name="trailer_url" type="url" value="{{.Form.TrailerURL}}">
+      {{with index .Errors "trailer_url"}}<div class="invalid-feedback">{{.}}</div>{{end}}
+    </div>
+
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-dark">{{.Submit}}</button>
+      <a class="btn btn-outline-secondary" href="/admin/movies">Cancel</a>
+    </div>
+  </form>
+</div>
+{{end}}

@@ -1,0 +1,56 @@
+{{define "userbar"}}{{template "admin-nav" .}}{{end}}
+
+{{define "content"}}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <h1 class="h4 mb-0">Movies</h1>
+  <a class="btn btn-dark btn-sm" href="/admin/movies/new">New movie</a>
+</div>
+{{with .Flash.Message}}
+<div class="alert alert-{{$.Flash.Kind}} alert-dismissible py-2">
+  {{.}}
+  <button type="button" class="btn-close" aria-label="Close" onclick="this.parentElement.remove()"></button>
+</div>
+{{end}}
+<form method="get" action="/admin/movies" class="d-flex align-items-center gap-2 mb-3">
+  <input class="form-control form-control-sm w-auto" type="search" name="q" value="{{.Q}}" placeholder="Search by title">
+  <button type="submit" class="btn btn-outline-dark btn-sm">Search</button>
+  {{if .Q}}<a class="btn btn-link btn-sm" href="/admin/movies">Clear</a>{{end}}
+</form>
+{{if .Movies}}
+<div class="table-responsive">
+  <table class="table table-sm align-middle bg-white">
+    <thead>
+      <tr>
+        <th>Title</th><th>Slug</th><th>Age</th><th>Release date</th><th>Status</th><th>Genres</th><th class="text-end">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Movies}}
+      <tr>
+        <td><a class="text-decoration-none" href="/admin/movies/{{.ID}}/edit">{{.Title}}</a></td>
+        <td class="text-secondary small">{{.Slug}}</td>
+        <td>{{.AgeRating}}</td>
+        <td>{{.ReleaseDate}}</td>
+        <td><span class="badge text-bg-secondary">{{.Status}}</span></td>
+        <td>{{.Genres}}</td>
+        <td class="text-end text-nowrap">
+          <a class="btn btn-outline-dark btn-sm" href="/admin/movies/{{.ID}}/edit">Edit</a>
+          <form method="post" action="/admin/movies/{{.ID}}/delete" class="d-inline" onsubmit="return confirm('Delete this movie?')">
+            <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+            <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+<div class="d-flex align-items-center gap-2">
+  {{if .HasPrev}}<a class="btn btn-outline-secondary btn-sm" href="/admin/movies?q={{.Q}}&page={{.PrevPage}}">Previous</a>{{end}}
+  <span class="text-secondary small">Page {{.Page}} of {{.TotalPages}} · {{.Total}} movies</span>
+  {{if .HasNext}}<a class="btn btn-outline-secondary btn-sm" href="/admin/movies?q={{.Q}}&page={{.NextPage}}">Next</a>{{end}}
+</div>
+{{else}}
+<p class="text-secondary">No movies found.{{if .HasPrev}} <a href="/admin/movies">Back to the first page</a>.{{end}}</p>
+{{end}}
+{{end}}
