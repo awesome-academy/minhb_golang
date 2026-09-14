@@ -42,7 +42,7 @@ func (r *adminSessionRepository) Create(ctx context.Context, userID int64) (stri
 }
 
 func (r *adminSessionRepository) FindUserID(ctx context.Context, id string) (int64, error) {
-	userID, err := r.client.Get(ctx, adminSessionKeyPrefix+id).Int64()
+	userID, err := r.client.GetEx(ctx, adminSessionKeyPrefix+id, r.ttl).Int64()
 	if errors.Is(err, redis.Nil) {
 		return 0, apperrors.ErrSessionNotFound
 	}

@@ -86,7 +86,7 @@ SQL
 | `LOG_LEVEL` | `info` | `debug` `info` `warn` `error` |
 | `LOG_FORMAT` | `text` | `text` (dev, log SQL có màu) hoặc `json` (prod, không màu) |
 | `REDIS_URL` | bắt buộc | Redis URL (`redis://[:pass@]host:port/db`), chỉ giữ session admin; thiếu hoặc ping lỗi → app dừng ngay |
-| `ADMIN_SESSION_TTL` | `8h` | Go duration > 0; là TTL key Redis và `Max-Age` cookie `admin_session`, không sliding |
+| `ADMIN_SESSION_TTL` | `8h` | Go duration > 0; TTL key Redis và `Max-Age` cookie `admin_session`, sliding: mỗi request admin hợp lệ gia hạn lại từ đầu (`GETEX`), hết hạn khi không thao tác quá TTL |
 | `ADMIN_COOKIE_SECURE` | `false` | `true` khi admin chạy qua HTTPS; dev HTTP phải để `false` (cookie `Secure` không gửi qua HTTP) |
 | `POSTGRES_*` | `cinema` / `5434` | Chỉ dùng bởi Docker Compose |
 | `REDIS_PORT` | `6380` | Chỉ dùng bởi Docker Compose (host port của `cinema-redis`) |

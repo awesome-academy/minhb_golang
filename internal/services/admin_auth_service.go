@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"errors"
+	"log/slog"
 
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
@@ -11,6 +12,8 @@ import (
 	"cinema-booking/internal/models"
 	"cinema-booking/internal/repositories"
 )
+
+const dummyPasswordHash = "$2a$10$sNzmkAV9SR7hp1iuvK4Ga.R03fZYu/iPaMNdTNtz3oGLGIzB087dG"
 
 type AdminAuthService interface {
 	Login(ctx context.Context, email, password string) (string, error)
@@ -28,20 +31,21 @@ func NewAdminAuthService(users repositories.UserRepository, sessions repositorie
 
 func (s *adminAuthService) Login(ctx context.Context, email, password string) (string, error) {
 	user, err := s.users.FindByEmail(ctx, email)
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return "", apperrors.ErrInvalidCredentials
-	}
-	if err != nil {
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return "", err
 	}
-	if user.Role != models.UserRoleAdmin {
+
+	hash := dummyPasswordHash
+	if user != nil {
+		hash = user.PasswordHash
+	}
+	bcryptErr := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	if user == nil || user.Role != models.UserRoleAdmin || bcryptErr != nil {
 		return "", apperrors.ErrInvalidCredentials
 	}
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
-		return "", apperrors.ErrInvalidCredentials
-	}
+
 	if err := s.users.UpdateLastLogin(ctx, user.ID); err != nil {
-		return "", err
+		slog.WarnContext(ctx, "failed to update admin last login", "user_id", user.ID, "error", err)
 	}
 	return s.sessions.Create(ctx, user.ID)
 }

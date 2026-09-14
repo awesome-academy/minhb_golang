@@ -18,7 +18,7 @@ func IsAdminPath(path string) bool {
 	return path == AdminPathPrefix || strings.HasPrefix(path, AdminPathPrefix+"/")
 }
 
-func AdminCSRF() echo.MiddlewareFunc {
+func AdminCSRF(secure bool) echo.MiddlewareFunc {
 	return echomw.CSRFWithConfig(echomw.CSRFConfig{
 		Skipper: func(c *echo.Context) bool {
 			return !IsAdminPath(c.Request().URL.Path)
@@ -27,6 +27,7 @@ func AdminCSRF() echo.MiddlewareFunc {
 		ContextKey:     CSRFContextKey,
 		CookiePath:     AdminPathPrefix,
 		CookieHTTPOnly: true,
+		CookieSecure:   secure,
 		CookieSameSite: http.SameSiteLaxMode,
 	})
 }

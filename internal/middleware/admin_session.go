@@ -46,6 +46,7 @@ func RequireAdminSession(cookie AdminSessionCookie, sessions repositories.AdminS
 				return redirectToLogin(c, cookie)
 			}
 
+			cookie.Set(c, sessionCookie.Value)
 			c.Set(AdminUserContextKey, user)
 			return next(c)
 		}

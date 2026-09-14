@@ -81,7 +81,7 @@ func run() error {
 	e.Use(middleware.RequestLogger())
 	e.Use(middleware.Recover())
 	e.Use(appmw.AdminNoStore())
-	e.Use(appmw.AdminCSRF())
+	e.Use(appmw.AdminCSRF(cfg.AdminCookieSecure))
 
 	e.GET("/swaggers", func(c *echo.Context) error {
 		return c.Redirect(http.StatusFound, "/swaggers/index.html")
