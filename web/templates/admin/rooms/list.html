@@ -1,0 +1,50 @@
+{{define "userbar"}}{{template "admin-nav" .}}{{end}}
+
+{{define "content"}}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb small mb-2">
+    <li class="breadcrumb-item"><a class="text-decoration-none" href="/admin/theaters">Theaters</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{{.TheaterName}}</li>
+  </ol>
+</nav>
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <h1 class="h4 mb-0">Rooms</h1>
+  <a class="btn btn-dark btn-sm" href="/admin/theaters/{{.TheaterID}}/rooms/new">New room</a>
+</div>
+{{with .Flash.Message}}
+<div class="alert alert-{{$.Flash.Kind}} alert-dismissible py-2">
+  {{.}}
+  <button type="button" class="btn-close" aria-label="Close" onclick="this.parentElement.remove()"></button>
+</div>
+{{end}}
+{{if .Rooms}}
+<div class="table-responsive">
+  <table class="table table-sm align-middle bg-white">
+    <thead>
+      <tr>
+        <th>Name</th><th>Status</th><th>Seats</th><th class="text-end">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Rooms}}
+      <tr>
+        <td><a class="text-decoration-none" href="/admin/rooms/{{.ID}}/edit">{{.Name}}</a></td>
+        <td>{{if .IsActive}}<span class="badge text-bg-success">Active</span>{{else}}<span class="badge text-bg-secondary">Inactive</span>{{end}}</td>
+        <td>{{if .HasSeats}}{{.ActiveSeats}} / {{.TotalSeats}} active{{else}}<span class="text-secondary">No seats</span>{{end}}</td>
+        <td class="text-end text-nowrap">
+          <a class="btn btn-outline-dark btn-sm" href="/admin/rooms/{{.ID}}/edit">Edit</a>
+          <a class="btn {{if .HasSeats}}btn-outline-dark{{else}}btn-dark{{end}} btn-sm" href="/admin/rooms/{{.ID}}/seats">Seats</a>
+          <form method="post" action="/admin/rooms/{{.ID}}/status" class="d-inline">
+            <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+            {{if .IsActive}}<button type="submit" class="btn btn-outline-warning btn-sm">Deactivate</button>{{else}}<button type="submit" class="btn btn-outline-success btn-sm">Activate</button>{{end}}
+          </form>
+        </td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+{{else}}
+<p class="text-secondary">No rooms yet.</p>
+{{end}}
+{{end}}

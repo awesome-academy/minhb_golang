@@ -94,6 +94,9 @@ func run() error {
 	genreRepository := repositories.NewGenreRepository(database)
 	movieRepository := repositories.NewMovieRepository(database)
 	theaterRepository := repositories.NewTheaterRepository(database)
+	roomRepository := repositories.NewRoomRepository(database)
+	seatRepository := repositories.NewSeatRepository(database)
+	seatTypeRepository := repositories.NewSeatTypeRepository(database)
 	adminSessionRepository := repositories.NewAdminSessionRepository(redisClient, cfg.AdminSessionTTL)
 
 	// Services
@@ -101,13 +104,25 @@ func run() error {
 	adminAuthService := services.NewAdminAuthService(userRepository, adminSessionRepository)
 	adminMovieService := services.NewAdminMovieService(movieRepository, genreRepository)
 	adminTheaterService := services.NewAdminTheaterService(theaterRepository)
+	adminRoomService := services.NewAdminRoomService(theaterRepository, roomRepository, seatRepository)
+	adminSeatService := services.NewAdminSeatService(roomRepository, seatRepository, seatTypeRepository)
 
 	// Middleware
 	adminCookie := appmw.AdminSessionCookie{Secure: cfg.AdminCookieSecure, TTL: cfg.AdminSessionTTL}
 	adminSession := appmw.RequireAdminSession(adminCookie, adminSessionRepository, userRepository)
 
 	// Handlers
-	handlers.RegisterRoutes(e, healthService, adminAuthService, adminMovieService, adminTheaterService, adminCookie, adminSession)
+	handlers.RegisterRoutes(
+		e,
+		healthService,
+		adminAuthService,
+		adminMovieService,
+		adminTheaterService,
+		adminRoomService,
+		adminSeatService,
+		adminCookie,
+		adminSession,
+	)
 
 	return e.Start(cfg.HTTPAddr)
 }

@@ -10,4 +10,7 @@ var (
 	ErrMovieHasShowtimes  = errors.New("movie has upcoming showtimes")
 	ErrRecordModified     = errors.New("record was modified by someone else")
 	ErrRecordTokenInvalid = errors.New("record version token is missing or invalid")
+	ErrRoomNameTaken      = errors.New("room name already exists in this theater")
+	ErrRoomHasShowtimes   = errors.New("room has showtimes")
+	ErrSeatTypeInvalid    = errors.New("seat type does not exist")
 )

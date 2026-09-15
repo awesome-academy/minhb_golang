@@ -34,6 +34,7 @@
         <td>{{.Phone}}</td>
         <td>{{if .IsActive}}<span class="badge text-bg-success">Active</span>{{else}}<span class="badge text-bg-secondary">Inactive</span>{{end}}</td>
         <td class="text-end text-nowrap">
+          <a class="btn btn-outline-dark btn-sm" href="/admin/theaters/{{.ID}}/rooms">Rooms</a>
           <a class="btn btn-outline-dark btn-sm" href="/admin/theaters/{{.ID}}/edit">Edit</a>
           <form method="post" action="/admin/theaters/{{.ID}}/status" class="d-inline">
             <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">

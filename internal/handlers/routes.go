@@ -14,6 +14,8 @@ func RegisterRoutes(
 	adminAuthService services.AdminAuthService,
 	adminMovieService services.AdminMovieService,
 	adminTheaterService services.AdminTheaterService,
+	adminRoomService services.AdminRoomService,
+	adminSeatService services.AdminSeatService,
 	adminCookie middleware.AdminSessionCookie,
 	adminSession echo.MiddlewareFunc,
 ) {
@@ -27,6 +29,8 @@ func RegisterRoutes(
 		admin.NewDashboardHandler(),
 		admin.NewMovieHandler(adminMovieService, adminCookie.Secure),
 		admin.NewTheaterHandler(adminTheaterService, adminCookie.Secure),
+		admin.NewRoomHandler(adminRoomService, adminCookie.Secure),
+		admin.NewSeatHandler(adminSeatService, adminCookie.Secure),
 		adminSession,
 	)
 }
@@ -41,6 +45,8 @@ func registerAdminRoutes(
 	dashboard *admin.DashboardHandler,
 	movies *admin.MovieHandler,
 	theaters *admin.TheaterHandler,
+	rooms *admin.RoomHandler,
+	seats *admin.SeatHandler,
 	adminSession echo.MiddlewareFunc,
 ) {
 	g.GET("/login", auth.LoginPage)
@@ -61,4 +67,14 @@ func registerAdminRoutes(
 	protected.GET("/theaters/:id/edit", theaters.Edit)
 	protected.POST("/theaters/:id", theaters.Update)
 	protected.POST("/theaters/:id/status", theaters.ChangeStatus)
+	protected.GET("/theaters/:id/rooms", rooms.List)
+	protected.GET("/theaters/:id/rooms/new", rooms.New)
+	protected.POST("/theaters/:id/rooms", rooms.Create)
+	protected.GET("/rooms/:id/edit", rooms.Edit)
+	protected.POST("/rooms/:id", rooms.Update)
+	protected.POST("/rooms/:id/status", rooms.ChangeStatus)
+	protected.GET("/rooms/:id/seats", seats.Map)
+	protected.POST("/rooms/:id/seats/generate", seats.Generate)
+	protected.POST("/rooms/:id/seats/types", seats.ChangeRowTypes)
+	protected.POST("/rooms/:id/seats/:seatId/status", seats.ChangeStatus)
 }

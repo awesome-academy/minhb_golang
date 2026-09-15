@@ -6,7 +6,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/labstack/echo/v5"
 
@@ -255,14 +254,6 @@ func (h *MovieHandler) renderFormError(c *echo.Context, view MovieFormView, err 
 	return h.renderForm(c, http.StatusUnprocessableEntity, view)
 }
 
-func parsePage(raw string) int {
-	page, err := strconv.Atoi(raw)
-	if err != nil || page < 1 {
-		return 1
-	}
-	return page
-}
-
 func toMovieRows(movies []models.Movie) []MovieRow {
 	rows := make([]MovieRow, 0, len(movies))
 	for _, movie := range movies {
@@ -327,51 +318,4 @@ func genreOptions(genres []models.Genre, selected []int64) []GenreOption {
 		options = append(options, GenreOption{ID: genre.ID, Name: genre.Name, Checked: slices.Contains(selected, genre.ID)})
 	}
 	return options
-}
-
-func fieldErrors(err error) (map[string]string, string, bool) {
-	var validationErr utils.ValidationError
-	if errors.As(err, &validationErr) {
-		fields := make(map[string]string, len(validationErr.Errors))
-		for _, fieldErr := range validationErr.Errors {
-			key := fieldKey(fieldErr.Field)
-			if _, exists := fields[key]; !exists {
-				fields[key] = fieldErr.Message
-			}
-		}
-		return fields, "", true
-	}
-	var apiErr utils.APIErrorResponse
-	if errors.As(err, &apiErr) && apiErr.ErrorCode == http.StatusBadRequest {
-		return nil, "Please check the form", true
-	}
-	return nil, "", false
-}
-
-func fieldKey(field string) string {
-	if i := strings.IndexByte(field, '['); i >= 0 {
-		field = field[:i]
-	}
-	if strings.HasPrefix(field, "cast_") {
-		return "cast"
-	}
-	return field
-}
-
-func at(values []string, i int) string {
-	if i < len(values) {
-		return values[i]
-	}
-	return ""
-}
-
-func updatedAtToken(t time.Time) string {
-	return t.UTC().Format(time.RFC3339Nano)
-}
-
-func derefString(s *string) string {
-	if s == nil {
-		return ""
-	}
-	return *s
 }

@@ -2,9 +2,11 @@ package admin
 
 import (
 	"encoding/base64"
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v5"
 
@@ -40,11 +42,70 @@ func adminEmail(c *echo.Context) string {
 }
 
 func parseID(c *echo.Context) (int64, error) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	return parseParamID(c, "id")
+}
+
+func parseParamID(c *echo.Context, name string) (int64, error) {
+	id, err := strconv.ParseInt(c.Param(name), 10, 64)
 	if err != nil || id <= 0 {
 		return 0, utils.APIError(http.StatusNotFound, "resource not found")
 	}
 	return id, nil
+}
+
+func parsePage(raw string) int {
+	page, err := strconv.Atoi(raw)
+	if err != nil || page < 1 {
+		return 1
+	}
+	return page
+}
+
+func fieldErrors(err error) (map[string]string, string, bool) {
+	var validationErr utils.ValidationError
+	if errors.As(err, &validationErr) {
+		fields := make(map[string]string, len(validationErr.Errors))
+		for _, fieldErr := range validationErr.Errors {
+			key := fieldKey(fieldErr.Field)
+			if _, exists := fields[key]; !exists {
+				fields[key] = fieldErr.Message
+			}
+		}
+		return fields, "", true
+	}
+	var apiErr utils.APIErrorResponse
+	if errors.As(err, &apiErr) && apiErr.ErrorCode == http.StatusBadRequest {
+		return nil, "Please check the form", true
+	}
+	return nil, "", false
+}
+
+func fieldKey(field string) string {
+	if i := strings.IndexByte(field, '['); i >= 0 {
+		field = field[:i]
+	}
+	if strings.HasPrefix(field, "cast_") {
+		return "cast"
+	}
+	return field
+}
+
+func updatedAtToken(t time.Time) string {
+	return t.UTC().Format(time.RFC3339Nano)
+}
+
+func derefString(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
+
+func at(values []string, i int) string {
+	if i < len(values) {
+		return values[i]
+	}
+	return ""
 }
 
 func (f flashCookie) set(c *echo.Context, kind, message string) {

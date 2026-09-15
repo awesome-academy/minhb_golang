@@ -1,0 +1,95 @@
+{{define "userbar"}}{{template "admin-nav" .}}{{end}}
+{{define "scripts"}}<script src="/static/seat-map.js" defer></script>{{end}}
+
+{{define "content"}}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb small mb-2">
+    <li class="breadcrumb-item"><a class="text-decoration-none" href="/admin/theaters">Theaters</a></li>
+    <li class="breadcrumb-item"><a class="text-decoration-none" href="/admin/theaters/{{.TheaterID}}/rooms">{{.TheaterName}}</a></li>
+    <li class="breadcrumb-item"><a class="text-decoration-none" href="/admin/rooms/{{.RoomID}}/edit">{{.RoomName}}</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Seats</li>
+  </ol>
+</nav>
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <h1 class="h4 mb-0">Seats · {{.RoomName}}</h1>
+  <a class="text-decoration-none small" href="/admin/theaters/{{.TheaterID}}/rooms">Back to rooms</a>
+</div>
+{{with .Flash.Message}}
+<div class="alert alert-{{$.Flash.Kind}} alert-dismissible py-2">
+  {{.}}
+  <button type="button" class="btn-close" aria-label="Close" onclick="this.parentElement.remove()"></button>
+</div>
+{{end}}
+{{with .Error}}<div class="alert alert-danger py-2">{{.}}</div>{{end}}
+
+<div class="card card-body mb-4">
+  <h2 class="h6 mb-3">Generate seat map</h2>
+  {{if .HasShowtimes}}
+  <div class="alert alert-warning py-2 mb-3">Seat map is locked because this room has showtimes. You can still change row types and enable or disable seats.</div>
+  {{else if .HasSeats}}
+  <div class="alert alert-warning py-2 mb-3">Generating replaces all {{.TotalSeats}} existing seats.</div>
+  {{end}}
+  <form method="post" action="/admin/rooms/{{.RoomID}}/seats/generate" novalidate class="row g-3 align-items-end">
+    <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+    <div class="col-md-3">
+      <label for="rows" class="form-label">Rows (1–702)</label>
+      <input class="form-control{{if index .Errors "rows"}} is-invalid{{end}}" id="rows" name="rows" type="number" min="1" max="702" value="{{if .Form.Rows}}{{.Form.Rows}}{{end}}" {{if .HasShowtimes}}disabled{{end}}>
+      {{with index .Errors "rows"}}<div class="invalid-feedback">{{.}}</div>{{end}}
+    </div>
+    <div class="col-md-3">
+      <label for="seats_per_row" class="form-label">Seats per row (1–100)</label>
+      <input class="form-control{{if index .Errors "seats_per_row"}} is-invalid{{end}}" id="seats_per_row" name="seats_per_row" type="number" min="1" max="100" value="{{if .Form.SeatsPerRow}}{{.Form.SeatsPerRow}}{{end}}" {{if .HasShowtimes}}disabled{{end}}>
+      {{with index .Errors "seats_per_row"}}<div class="invalid-feedback">{{.}}</div>{{end}}
+    </div>
+    <div class="col-md-3">
+      <label for="seat_type_id" class="form-label">Default seat type</label>
+      <select class="form-select{{if index .Errors "seat_type_id"}} is-invalid{{end}}" id="seat_type_id" name="seat_type_id" {{if .HasShowtimes}}disabled{{end}}>
+        {{range .SeatTypes}}<option value="{{.ID}}" {{if eq .ID $.Form.SeatTypeID}}selected{{end}}>{{.Name}}</option>{{end}}
+      </select>
+      {{with index .Errors "seat_type_id"}}<div class="invalid-feedback">{{.}}</div>{{end}}
+    </div>
+    <div class="col-md-3">
+      <button type="submit" class="btn btn-dark w-100" {{if .HasShowtimes}}disabled{{end}}>Generate seats</button>
+    </div>
+  </form>
+</div>
+
+{{if .Rows}}
+<div class="d-flex flex-wrap align-items-center justify-content-center gap-3 mb-3 small">
+  {{range .SeatTypes}}<span><span class="seat seat-{{.Code}} seat-legend"></span> {{.Name}}</span>{{end}}
+  <span><span class="seat seat-off seat-legend"></span> Disabled</span>
+  <span class="text-secondary">{{.TotalSeats}} seats · click a seat to enable or disable it</span>
+</div>
+<div class="seat-map" data-csrf="{{.CSRFToken}}">
+  <div class="seat-labels">
+    {{range .Rows}}<div class="seat-label">{{.Label}}</div>{{end}}
+  </div>
+  <div class="seat-scroll">
+    <div class="seat-scroll-inner">
+      <div class="seat-screen">Screen</div>
+      {{range $row := .Rows}}
+      <div class="seat-row">
+        {{range $row.Seats}}
+        <button type="button" class="seat seat-{{.TypeCode}}{{if not .IsActive}} seat-off{{end}}" data-url="/admin/rooms/{{$.RoomID}}/seats/{{.ID}}/status" title="{{$row.Label}}{{.Number}} · {{.TypeCode}}{{if not .IsActive}} · disabled{{end}}">{{.Number}}</button>
+        {{end}}
+      </div>
+      {{end}}
+    </div>
+  </div>
+  <form method="post" action="/admin/rooms/{{.RoomID}}/seats/types" class="seat-controls">
+    <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+    {{range $row := .Rows}}
+    <div class="seat-row-control">
+      <input type="hidden" name="row_label" value="{{$row.Label}}">
+      <select class="form-select form-select-sm w-auto" name="seat_type_id" aria-label="Seat type for row {{$row.Label}}">
+        {{range $.SeatTypes}}<option value="{{.ID}}" {{if eq .ID $row.SeatTypeID}}selected{{end}}>{{.Name}}</option>{{end}}
+      </select>
+    </div>
+    {{end}}
+    <button type="submit" class="btn btn-dark btn-sm w-100 mt-2">Apply seat types</button>
+  </form>
+</div>
+{{else}}
+<p class="text-secondary">No seats yet. Generate a seat map above.</p>
+{{end}}
+{{end}}
