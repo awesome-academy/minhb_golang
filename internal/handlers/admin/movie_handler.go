@@ -168,7 +168,7 @@ func (h *MovieHandler) Update(c *echo.Context) error {
 		return h.renderFormError(c, h.editView(c, movie, form), err)
 	}
 	if err := h.service.Update(ctx, id, form); err != nil {
-		if errors.Is(err, apperrors.ErrMovieModified) {
+		if errors.Is(err, apperrors.ErrMovieModified) || errors.Is(err, apperrors.ErrMovieTokenInvalid) {
 			form.UpdatedAt = updatedAtToken(movie.UpdatedAt)
 		}
 		return h.renderFormError(c, h.editView(c, movie, form), err)
@@ -242,6 +242,9 @@ func (h *MovieHandler) renderFormError(c *echo.Context, view MovieFormView, err 
 	case errors.Is(err, apperrors.ErrMovieModified):
 		view.Error = "Someone else changed this movie while you were editing. Reload to see the latest data, or save again to overwrite it."
 		return h.renderForm(c, http.StatusConflict, view)
+	case errors.Is(err, apperrors.ErrMovieTokenInvalid):
+		view.Error = "The form was submitted without a valid version token, so nothing was saved. Submit again to retry."
+		return h.renderForm(c, http.StatusBadRequest, view)
 	default:
 		fields, message, ok := fieldErrors(err)
 		if !ok {

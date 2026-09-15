@@ -9,4 +9,5 @@ var (
 	ErrMovieCastInvalid   = errors.New("movie cast member missing name")
 	ErrMovieHasShowtimes  = errors.New("movie has upcoming showtimes")
 	ErrMovieModified      = errors.New("movie was modified by someone else")
+	ErrMovieTokenInvalid  = errors.New("movie version token is missing or invalid")
 )

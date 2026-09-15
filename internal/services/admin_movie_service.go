@@ -72,7 +72,7 @@ func (s *adminMovieService) Create(ctx context.Context, form dto.AdminMovieForm)
 func (s *adminMovieService) Update(ctx context.Context, id int64, form dto.AdminMovieForm) error {
 	expectedUpdatedAt, err := time.Parse(time.RFC3339Nano, form.UpdatedAt)
 	if err != nil {
-		return apperrors.ErrMovieModified
+		return apperrors.ErrMovieTokenInvalid
 	}
 	movie, err := s.movies.FindByID(ctx, id)
 	if err != nil {

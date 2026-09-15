@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -30,7 +31,8 @@ func NewMovieRepository(db *gorm.DB) MovieRepository {
 func (r *movieRepository) List(ctx context.Context, search string, offset, limit int) ([]models.Movie, int64, error) {
 	base := r.db.WithContext(ctx).Model(&models.Movie{})
 	if search != "" {
-		base = base.Where("title ILIKE ?", "%"+search+"%")
+		escaped := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(search)
+		base = base.Where("title ILIKE ?", "%"+escaped+"%")
 	}
 	base = base.Session(&gorm.Session{})
 
@@ -94,6 +96,9 @@ func (r *movieRepository) Delete(ctx context.Context, id int64) error {
 		}
 		if upcoming > 0 {
 			return apperrors.ErrMovieHasShowtimes
+		}
+		if err := replaceGenres(tx, id, nil); err != nil {
+			return err
 		}
 		return tx.Delete(&movie).Error
 	})
