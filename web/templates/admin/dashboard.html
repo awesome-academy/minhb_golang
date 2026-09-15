@@ -1,12 +1,4 @@
-{{define "userbar"}}
-<div class="ms-auto d-flex align-items-center gap-3">
-  <span class="text-secondary small">{{.AdminEmail}}</span>
-  <form method="post" action="/admin/logout" class="m-0">
-    <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
-    <button type="submit" class="btn btn-outline-dark btn-sm">Logout</button>
-  </form>
-</div>
-{{end}}
+{{define "userbar"}}{{template "admin-nav" .}}{{end}}
 
 {{define "content"}}
 <h1 class="h4 mb-3">Dashboard</h1>

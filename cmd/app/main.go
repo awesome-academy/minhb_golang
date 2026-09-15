@@ -91,18 +91,21 @@ func run() error {
 	// Repositories
 	healthRepository := repositories.NewHealthRepository(database)
 	userRepository := repositories.NewUserRepository(database)
+	genreRepository := repositories.NewGenreRepository(database)
+	movieRepository := repositories.NewMovieRepository(database)
 	adminSessionRepository := repositories.NewAdminSessionRepository(redisClient, cfg.AdminSessionTTL)
 
 	// Services
 	healthService := services.NewHealthService(healthRepository)
 	adminAuthService := services.NewAdminAuthService(userRepository, adminSessionRepository)
+	adminMovieService := services.NewAdminMovieService(movieRepository, genreRepository)
 
 	// Middleware
 	adminCookie := appmw.AdminSessionCookie{Secure: cfg.AdminCookieSecure, TTL: cfg.AdminSessionTTL}
 	adminSession := appmw.RequireAdminSession(adminCookie, adminSessionRepository, userRepository)
 
 	// Handlers
-	handlers.RegisterRoutes(e, healthService, adminAuthService, adminCookie, adminSession)
+	handlers.RegisterRoutes(e, healthService, adminAuthService, adminMovieService, adminCookie, adminSession)
 
 	return e.Start(cfg.HTTPAddr)
 }

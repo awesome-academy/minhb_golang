@@ -22,3 +22,12 @@ body {
   font-size: 2rem;
   font-weight: 700;
 }
+
+.form-card {
+  max-width: 48rem;
+}
+
+.alert-dismissible .btn-close {
+  font-size: 0.7rem;
+  padding: 0.9rem 0.75rem;
+}
