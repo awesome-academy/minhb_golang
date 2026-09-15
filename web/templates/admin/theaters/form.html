@@ -1,0 +1,69 @@
+{{define "userbar"}}{{template "admin-nav" .}}{{end}}
+
+{{define "content"}}
+<div class="form-card mx-auto">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h1 class="h4 mb-0">{{.Title}}</h1>
+    <a class="text-decoration-none small" href="/admin/theaters">Back to theaters</a>
+  </div>
+  {{with .Error}}<div class="alert alert-danger py-2">{{.}}</div>{{end}}
+  <form method="post" action="{{.Action}}" novalidate class="card card-body">
+    <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+    {{if .IsEdit}}<input type="hidden" name="updated_at" value="{{.Form.UpdatedAt}}">{{end}}
+
+    <div class="mb-3">
+      <label for="name" class="form-label">Name *</label>
+      <input class="form-control{{if index .Errors "name"}} is-invalid{{end}}" id="name" name="name" value="{{.Form.Name}}" required>
+      {{with index .Errors "name"}}<div class="invalid-feedback">{{.}}</div>{{end}}
+    </div>
+
+    {{if .IsEdit}}
+    <div class="mb-3">
+      <label for="slug" class="form-label">Slug</label>
+      <input class="form-control-plaintext" id="slug" value="{{.Slug}}" readonly>
+    </div>
+    {{end}}
+
+    <div class="mb-3">
+      <label for="address" class="form-label">Address *</label>
+      <input class="form-control{{if index .Errors "address"}} is-invalid{{end}}" id="address" name="address" value="{{.Form.Address}}" required>
+      {{with index .Errors "address"}}<div class="invalid-feedback">{{.}}</div>{{end}}
+    </div>
+
+    <div class="row g-3 mb-3">
+      <div class="col-md-6">
+        <label for="city" class="form-label">City *</label>
+        <input class="form-control{{if index .Errors "city"}} is-invalid{{end}}" id="city" name="city" value="{{.Form.City}}" required>
+        {{with index .Errors "city"}}<div class="invalid-feedback">{{.}}</div>{{end}}
+      </div>
+      <div class="col-md-6">
+        <label for="phone" class="form-label">Phone</label>
+        <input class="form-control{{if index .Errors "phone"}} is-invalid{{end}}" id="phone" name="phone" value="{{.Form.Phone}}">
+        {{with index .Errors "phone"}}<div class="invalid-feedback">{{.}}</div>{{end}}
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label for="image_url" class="form-label">Image URL</label>
+      <input class="form-control{{if index .Errors "image_url"}} is-invalid{{end}}" id="image_url" name="image_url" type="url" value="{{.Form.ImageURL}}">
+      {{with index .Errors "image_url"}}<div class="invalid-feedback">{{.}}</div>{{end}}
+    </div>
+
+    <div class="mb-3">
+      <label for="description" class="form-label">Description</label>
+      <textarea class="form-control{{if index .Errors "description"}} is-invalid{{end}}" id="description" name="description" rows="4">{{.Form.Description}}</textarea>
+      {{with index .Errors "description"}}<div class="invalid-feedback">{{.}}</div>{{end}}
+    </div>
+
+    <div class="form-check mb-4">
+      <input class="form-check-input" type="checkbox" id="is_active" name="is_active" value="true" {{if .Form.IsActive}}checked{{end}}>
+      <label class="form-check-label" for="is_active">Active</label>
+    </div>
+
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-dark">{{.Submit}}</button>
+      <a class="btn btn-outline-secondary" href="/admin/theaters">Cancel</a>
+    </div>
+  </form>
+</div>
+{{end}}

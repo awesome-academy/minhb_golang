@@ -75,7 +75,7 @@ func (r *movieRepository) Update(ctx context.Context, movie *models.Movie, genre
 			if err := tx.First(&models.Movie{}, "id = ?", movie.ID).Error; err != nil {
 				return err
 			}
-			return apperrors.ErrMovieModified
+			return apperrors.ErrRecordModified
 		}
 		return replaceGenres(tx, movie.ID, genreIDs)
 	})

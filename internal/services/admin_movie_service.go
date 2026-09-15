@@ -60,7 +60,7 @@ func (s *adminMovieService) Create(ctx context.Context, form dto.AdminMovieForm)
 	if err != nil {
 		return 0, err
 	}
-	if movie.Slug, err = utils.NewSlug(form.Title); err != nil {
+	if movie.Slug, err = utils.NewSlug(form.Title, "movie"); err != nil {
 		return 0, err
 	}
 	if err := s.movies.Create(ctx, &movie, genreIDs); err != nil {
@@ -72,7 +72,7 @@ func (s *adminMovieService) Create(ctx context.Context, form dto.AdminMovieForm)
 func (s *adminMovieService) Update(ctx context.Context, id int64, form dto.AdminMovieForm) error {
 	expectedUpdatedAt, err := time.Parse(time.RFC3339Nano, form.UpdatedAt)
 	if err != nil {
-		return apperrors.ErrMovieTokenInvalid
+		return apperrors.ErrRecordTokenInvalid
 	}
 	movie, err := s.movies.FindByID(ctx, id)
 	if err != nil {
@@ -87,7 +87,7 @@ func (s *adminMovieService) Update(ctx context.Context, id int64, form dto.Admin
 		return err
 	}
 	if titleChanged {
-		if movie.Slug, err = utils.NewSlug(form.Title); err != nil {
+		if movie.Slug, err = utils.NewSlug(form.Title, "movie"); err != nil {
 			return err
 		}
 	}

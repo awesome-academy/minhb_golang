@@ -8,6 +8,6 @@ var (
 	ErrMovieGenreInvalid  = errors.New("movie genre does not exist")
 	ErrMovieCastInvalid   = errors.New("movie cast member missing name")
 	ErrMovieHasShowtimes  = errors.New("movie has upcoming showtimes")
-	ErrMovieModified      = errors.New("movie was modified by someone else")
-	ErrMovieTokenInvalid  = errors.New("movie version token is missing or invalid")
+	ErrRecordModified     = errors.New("record was modified by someone else")
+	ErrRecordTokenInvalid = errors.New("record version token is missing or invalid")
 )

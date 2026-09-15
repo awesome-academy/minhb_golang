@@ -168,7 +168,7 @@ func (h *MovieHandler) Update(c *echo.Context) error {
 		return h.renderFormError(c, h.editView(c, movie, form), err)
 	}
 	if err := h.service.Update(ctx, id, form); err != nil {
-		if errors.Is(err, apperrors.ErrMovieModified) || errors.Is(err, apperrors.ErrMovieTokenInvalid) {
+		if errors.Is(err, apperrors.ErrRecordModified) || errors.Is(err, apperrors.ErrRecordTokenInvalid) {
 			form.UpdatedAt = updatedAtToken(movie.UpdatedAt)
 		}
 		return h.renderFormError(c, h.editView(c, movie, form), err)
@@ -239,10 +239,10 @@ func (h *MovieHandler) renderFormError(c *echo.Context, view MovieFormView, err 
 		view.Errors = map[string]string{"genre_ids": "One or more genres do not exist"}
 	case errors.Is(err, apperrors.ErrMovieCastInvalid):
 		view.Errors = map[string]string{"cast": "Each cast member needs an actor name"}
-	case errors.Is(err, apperrors.ErrMovieModified):
+	case errors.Is(err, apperrors.ErrRecordModified):
 		view.Error = "Someone else changed this movie while you were editing. Reload to see the latest data, or save again to overwrite it."
 		return h.renderForm(c, http.StatusConflict, view)
-	case errors.Is(err, apperrors.ErrMovieTokenInvalid):
+	case errors.Is(err, apperrors.ErrRecordTokenInvalid):
 		view.Error = "The form was submitted without a valid version token, so nothing was saved. Submit again to retry."
 		return h.renderForm(c, http.StatusBadRequest, view)
 	default:

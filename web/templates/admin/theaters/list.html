@@ -1,0 +1,56 @@
+{{define "userbar"}}{{template "admin-nav" .}}{{end}}
+
+{{define "content"}}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <h1 class="h4 mb-0">Theaters</h1>
+  <a class="btn btn-dark btn-sm" href="/admin/theaters/new">New theater</a>
+</div>
+{{with .Flash.Message}}
+<div class="alert alert-{{$.Flash.Kind}} alert-dismissible py-2">
+  {{.}}
+  <button type="button" class="btn-close" aria-label="Close" onclick="this.parentElement.remove()"></button>
+</div>
+{{end}}
+<form method="get" action="/admin/theaters" class="d-flex align-items-center gap-2 mb-3">
+  <input class="form-control form-control-sm w-auto" type="search" name="q" value="{{.Q}}" placeholder="Search by name">
+  <button type="submit" class="btn btn-outline-dark btn-sm">Search</button>
+  {{if .Q}}<a class="btn btn-link btn-sm" href="/admin/theaters">Clear</a>{{end}}
+</form>
+{{if .Theaters}}
+<div class="table-responsive">
+  <table class="table table-sm align-middle bg-white">
+    <thead>
+      <tr>
+        <th>Name</th><th>Slug</th><th>City</th><th>Address</th><th>Phone</th><th>Status</th><th class="text-end">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Theaters}}
+      <tr>
+        <td><a class="text-decoration-none" href="/admin/theaters/{{.ID}}/edit">{{.Name}}</a></td>
+        <td class="text-secondary small">{{.Slug}}</td>
+        <td>{{.City}}</td>
+        <td>{{.Address}}</td>
+        <td>{{.Phone}}</td>
+        <td>{{if .IsActive}}<span class="badge text-bg-success">Active</span>{{else}}<span class="badge text-bg-secondary">Inactive</span>{{end}}</td>
+        <td class="text-end text-nowrap">
+          <a class="btn btn-outline-dark btn-sm" href="/admin/theaters/{{.ID}}/edit">Edit</a>
+          <form method="post" action="/admin/theaters/{{.ID}}/status" class="d-inline">
+            <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+            {{if .IsActive}}<button type="submit" class="btn btn-outline-warning btn-sm">Deactivate</button>{{else}}<button type="submit" class="btn btn-outline-success btn-sm">Activate</button>{{end}}
+          </form>
+        </td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+<div class="d-flex align-items-center gap-2">
+  {{if .HasPrev}}<a class="btn btn-outline-secondary btn-sm" href="/admin/theaters?q={{.Q}}&page={{.PrevPage}}">Previous</a>{{end}}
+  <span class="text-secondary small">Page {{.Page}} of {{.TotalPages}} · {{.Total}} theaters</span>
+  {{if .HasNext}}<a class="btn btn-outline-secondary btn-sm" href="/admin/theaters?q={{.Q}}&page={{.NextPage}}">Next</a>{{end}}
+</div>
+{{else}}
+<p class="text-secondary">No theaters found.{{if .HasPrev}} <a href="/admin/theaters">Back to the first page</a>.{{end}}</p>
+{{end}}
+{{end}}

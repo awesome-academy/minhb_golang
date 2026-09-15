@@ -33,10 +33,10 @@ func Slugify(s string) string {
 	return b.String()
 }
 
-func NewSlug(title string) (string, error) {
+func NewSlug(title, fallback string) (string, error) {
 	base := Slugify(title)
 	if base == "" {
-		base = "movie"
+		base = fallback
 	}
 	buf := make([]byte, 4)
 	if _, err := rand.Read(buf); err != nil {
