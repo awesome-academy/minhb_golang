@@ -17,21 +17,27 @@ var Files embed.FS
 const (
 	templatesRoot = "templates"
 	adminRoot     = "templates/admin"
+	partialsRoot  = "templates/admin/partials"
 	layoutFile    = "templates/admin/layout.html"
 )
 
 type Templates map[string]*template.Template
 
 func ParseTemplates() (Templates, error) {
+	partials, err := fs.Glob(Files, partialsRoot+"/*.html")
+	if err != nil {
+		return nil, err
+	}
 	templates := Templates{}
-	err := fs.WalkDir(Files, adminRoot, func(file string, entry fs.DirEntry, err error) error {
+	err = fs.WalkDir(Files, adminRoot, func(file string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if entry.IsDir() || file == layoutFile || path.Ext(file) != ".html" {
+		if entry.IsDir() || file == layoutFile || path.Ext(file) != ".html" || strings.HasPrefix(file, partialsRoot+"/") {
 			return nil
 		}
-		parsed, err := template.ParseFS(Files, layoutFile, file)
+		files := append([]string{layoutFile}, partials...)
+		parsed, err := template.ParseFS(Files, append(files, file)...)
 		if err != nil {
 			return fmt.Errorf("parse template %s: %w", file, err)
 		}

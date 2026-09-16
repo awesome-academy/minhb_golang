@@ -72,8 +72,3 @@ func (h *AuthHandler) renderLoginError(c *echo.Context, email string) error {
 		Error:     "Invalid email or password",
 	})
 }
-
-func csrfToken(c *echo.Context) string {
-	token, _ := c.Get(middleware.CSRFContextKey).(string)
-	return token
-}

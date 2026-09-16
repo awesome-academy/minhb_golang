@@ -41,7 +41,7 @@ func (rv *RequestValidator) Validate(i any) error {
 	for _, fe := range fieldErrors {
 		details = append(details, ValidationFieldError{
 			Field:   fe.Field(),
-			Message: validationMessage(fe.Field(), fe),
+			Message: validationMessage(fieldLabel(i, fe), fe),
 		})
 	}
 
@@ -63,6 +63,20 @@ func BindAndValidate(c *echo.Context, request any) error {
 	return c.Validate(request)
 }
 
+func fieldLabel(request any, fe validator.FieldError) string {
+	t := reflect.TypeOf(request)
+	for t != nil && t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	name, _, _ := strings.Cut(fe.StructField(), "[")
+	if t != nil && t.Kind() == reflect.Struct {
+		if field, ok := t.FieldByName(name); ok && field.Tag.Get("label") != "" {
+			return field.Tag.Get("label")
+		}
+	}
+	return fe.Field()
+}
+
 func validationMessage(field string, fe validator.FieldError) string {
 	switch fe.Tag() {
 	case "required":
@@ -75,6 +89,10 @@ func validationMessage(field string, fe validator.FieldError) string {
 		return field + " must be at least " + fe.Param()
 	case "len":
 		return field + " must have length " + fe.Param()
+	case "url":
+		return field + " must be a valid URL"
+	case "datetime":
+		return field + " must be a date in format YYYY-MM-DD"
 	case "oneof":
 		return field + " must be one of: " + fe.Param()
 	case "gt", "gte", "lt", "lte":
