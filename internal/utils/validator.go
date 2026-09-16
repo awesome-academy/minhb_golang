@@ -107,6 +107,9 @@ func validationMessage(field string, fe validator.FieldError) string {
 	case "url":
 		return field + " must be a valid URL"
 	case "datetime":
+		if strings.Contains(fe.Param(), "15:04") {
+			return field + " must be a date and time"
+		}
 		return field + " must be a date in format YYYY-MM-DD"
 	case "oneof":
 		return field + " must be one of: " + fe.Param()

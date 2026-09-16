@@ -14,6 +14,7 @@ import (
 
 type RoomRepository interface {
 	ListByTheater(ctx context.Context, theaterID int64) ([]models.Room, error)
+	ListActive(ctx context.Context) ([]models.Room, error)
 	FindByID(ctx context.Context, id int64) (*models.Room, error)
 	Create(ctx context.Context, room *models.Room) error
 	Update(ctx context.Context, room *models.Room, expectedUpdatedAt time.Time) error
@@ -32,6 +33,16 @@ func NewRoomRepository(db *gorm.DB) RoomRepository {
 func (r *roomRepository) ListByTheater(ctx context.Context, theaterID int64) ([]models.Room, error) {
 	var rooms []models.Room
 	if err := r.db.WithContext(ctx).Where("theater_id = ?", theaterID).Order("name, id").Find(&rooms).Error; err != nil {
+		return nil, err
+	}
+	return rooms, nil
+}
+
+func (r *roomRepository) ListActive(ctx context.Context) ([]models.Room, error) {
+	var rooms []models.Room
+	err := r.db.WithContext(ctx).Joins("Theater").Where("rooms.is_active").
+		Order(`"Theater".name, rooms.name, rooms.id`).Find(&rooms).Error
+	if err != nil {
 		return nil, err
 	}
 	return rooms, nil

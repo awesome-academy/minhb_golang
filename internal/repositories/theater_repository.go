@@ -13,6 +13,7 @@ import (
 
 type TheaterRepository interface {
 	List(ctx context.Context, search string, offset, limit int) ([]models.Theater, int64, error)
+	ListAll(ctx context.Context) ([]models.Theater, error)
 	FindByID(ctx context.Context, id int64) (*models.Theater, error)
 	Create(ctx context.Context, theater *models.Theater) error
 	Update(ctx context.Context, theater *models.Theater, expectedUpdatedAt time.Time) error
@@ -42,6 +43,14 @@ func (r *theaterRepository) List(ctx context.Context, search string, offset, lim
 		return nil, 0, err
 	}
 	return theaters, total, nil
+}
+
+func (r *theaterRepository) ListAll(ctx context.Context) ([]models.Theater, error) {
+	var theaters []models.Theater
+	if err := r.db.WithContext(ctx).Order("name, id").Find(&theaters).Error; err != nil {
+		return nil, err
+	}
+	return theaters, nil
 }
 
 func (r *theaterRepository) FindByID(ctx context.Context, id int64) (*models.Theater, error) {
