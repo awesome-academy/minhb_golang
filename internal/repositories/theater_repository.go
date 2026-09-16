@@ -30,7 +30,7 @@ func NewTheaterRepository(db *gorm.DB) TheaterRepository {
 func (r *theaterRepository) List(ctx context.Context, search string, offset, limit int) ([]models.Theater, int64, error) {
 	base := r.db.WithContext(ctx).Model(&models.Theater{})
 	if search != "" {
-		base = base.Where("name ILIKE ?", "%"+search+"%")
+		base = base.Where("name ILIKE ?", likePattern(search))
 	}
 	base = base.Session(&gorm.Session{})
 	var total int64

@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"gorm.io/gorm"
@@ -45,14 +46,14 @@ func (r *roomRepository) FindByID(ctx context.Context, id int64) (*models.Room, 
 }
 
 func (r *roomRepository) Create(ctx context.Context, room *models.Room) error {
-	return r.db.WithContext(ctx).Omit(clause.Associations).Create(room).Error
+	return roomWriteError(r.db.WithContext(ctx).Omit(clause.Associations).Create(room).Error)
 }
 
 func (r *roomRepository) Update(ctx context.Context, room *models.Room, expectedUpdatedAt time.Time) error {
 	result := r.db.WithContext(ctx).Model(room).Omit(clause.Associations).Select("*").
 		Where("updated_at = ?", expectedUpdatedAt).Updates(room)
 	if result.Error != nil {
-		return result.Error
+		return roomWriteError(result.Error)
 	}
 	if result.RowsAffected == 0 {
 		if err := r.db.WithContext(ctx).First(&models.Room{}, "id = ?", room.ID).Error; err != nil {
@@ -80,8 +81,15 @@ func (r *roomRepository) ChangeStatus(ctx context.Context, id int64) (bool, erro
 
 func (r *roomRepository) NameExists(ctx context.Context, theaterID int64, name string, excludeID int64) (bool, error) {
 	var count int64
-	err := r.db.WithContext(ctx).Model(&models.Room{}).
+	err := r.db.WithContext(ctx).Unscoped().Model(&models.Room{}).
 		Where("theater_id = ? AND lower(name) = lower(?) AND id <> ?", theaterID, name, excludeID).
 		Count(&count).Error
 	return count > 0, err
+}
+
+func roomWriteError(err error) error {
+	if errors.Is(err, gorm.ErrDuplicatedKey) {
+		return apperrors.ErrRoomNameTaken
+	}
+	return err
 }

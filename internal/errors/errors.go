@@ -13,4 +13,5 @@ var (
 	ErrRoomNameTaken      = errors.New("room name already exists in this theater")
 	ErrRoomHasShowtimes   = errors.New("room has showtimes")
 	ErrSeatTypeInvalid    = errors.New("seat type does not exist")
+	ErrRowTypesMismatch   = errors.New("row labels and seat types count mismatch")
 )

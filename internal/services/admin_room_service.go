@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	"cinema-booking/internal/dto"
@@ -114,6 +113,6 @@ func (s *adminRoomService) ensureNameFree(ctx context.Context, theaterID int64, 
 }
 
 func applyRoomForm(room *models.Room, form dto.AdminRoomForm) {
-	room.Name = strings.TrimSpace(form.Name)
+	room.Name = form.Name
 	room.IsActive = form.IsActive
 }

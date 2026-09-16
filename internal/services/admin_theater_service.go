@@ -64,7 +64,7 @@ func (s *adminTheaterService) Update(ctx context.Context, id int64, form dto.Adm
 	if err != nil {
 		return err
 	}
-	nameChanged := theater.Name != strings.TrimSpace(form.Name)
+	nameChanged := theater.Name != form.Name
 	applyTheaterForm(theater, form)
 	if nameChanged {
 		if theater.Slug, err = utils.NewSlug(form.Name, "theater"); err != nil {
@@ -79,9 +79,9 @@ func (s *adminTheaterService) ChangeStatus(ctx context.Context, id int64) (bool,
 }
 
 func applyTheaterForm(theater *models.Theater, form dto.AdminTheaterForm) {
-	theater.Name = strings.TrimSpace(form.Name)
-	theater.Address = strings.TrimSpace(form.Address)
-	theater.City = strings.TrimSpace(form.City)
+	theater.Name = form.Name
+	theater.Address = form.Address
+	theater.City = form.City
 	theater.Phone = optionalString(form.Phone)
 	theater.Description = optionalString(form.Description)
 	theater.ImageURL = optionalString(form.ImageURL)

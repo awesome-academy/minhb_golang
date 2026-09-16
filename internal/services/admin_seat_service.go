@@ -65,6 +65,9 @@ func (s *adminSeatService) Generate(ctx context.Context, roomID int64, form dto.
 }
 
 func (s *adminSeatService) ChangeRowTypes(ctx context.Context, roomID int64, form dto.AdminSeatRowTypesForm) (int, error) {
+	if len(form.RowLabels) != len(form.SeatTypeIDs) {
+		return 0, apperrors.ErrRowTypesMismatch
+	}
 	if _, err := s.rooms.FindByID(ctx, roomID); err != nil {
 		return 0, err
 	}

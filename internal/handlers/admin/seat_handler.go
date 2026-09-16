@@ -97,12 +97,14 @@ func (h *SeatHandler) ChangeRowTypes(c *echo.Context) error {
 		return err
 	}
 	var form dto.AdminSeatRowTypesForm
-	if err := utils.BindAndValidate(c, &form); err != nil || len(form.RowLabels) != len(form.SeatTypeIDs) {
+	if err := utils.BindAndValidate(c, &form); err != nil {
 		h.flash.set(c, flashDanger, "Please check the row seat types")
 		return c.Redirect(http.StatusSeeOther, seatMapPath(roomID))
 	}
 	changed, err := h.service.ChangeRowTypes(c.Request().Context(), roomID, form)
 	switch {
+	case errors.Is(err, apperrors.ErrRowTypesMismatch):
+		h.flash.set(c, flashDanger, "Please check the row seat types")
 	case errors.Is(err, apperrors.ErrSeatTypeInvalid):
 		h.flash.set(c, flashDanger, "Seat type does not exist")
 	case err != nil:
