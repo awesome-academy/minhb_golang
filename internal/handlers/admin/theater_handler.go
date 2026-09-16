@@ -137,7 +137,7 @@ func (h *TheaterHandler) Update(c *echo.Context) error {
 		return h.renderFormError(c, h.editView(c, theater, form), err)
 	}
 	if err := h.service.Update(ctx, id, form); err != nil {
-		if errors.Is(err, apperrors.ErrRecordModified) {
+		if errors.Is(err, apperrors.ErrRecordModified) || errors.Is(err, apperrors.ErrRecordTokenInvalid) {
 			form.UpdatedAt = updatedAtToken(theater.UpdatedAt)
 		}
 		return h.renderFormError(c, h.editView(c, theater, form), err)
@@ -198,6 +198,10 @@ func (h *TheaterHandler) renderFormError(c *echo.Context, view TheaterFormView, 
 	if errors.Is(err, apperrors.ErrRecordModified) {
 		view.Error = "Someone else changed this theater while you were editing. Reload to see the latest data, or save again to overwrite it."
 		return h.renderForm(c, http.StatusConflict, view)
+	}
+	if errors.Is(err, apperrors.ErrRecordTokenInvalid) {
+		view.Error = "The form was submitted without a valid version token, so nothing was saved. Submit again to retry."
+		return h.renderForm(c, http.StatusBadRequest, view)
 	}
 	fields, message, ok := fieldErrors(err)
 	if !ok {

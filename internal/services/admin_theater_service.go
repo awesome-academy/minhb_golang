@@ -58,7 +58,7 @@ func (s *adminTheaterService) Create(ctx context.Context, form dto.AdminTheaterF
 func (s *adminTheaterService) Update(ctx context.Context, id int64, form dto.AdminTheaterForm) error {
 	expectedUpdatedAt, err := time.Parse(time.RFC3339Nano, form.UpdatedAt)
 	if err != nil {
-		return apperrors.ErrRecordModified
+		return apperrors.ErrRecordTokenInvalid
 	}
 	theater, err := s.theaters.FindByID(ctx, id)
 	if err != nil {

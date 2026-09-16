@@ -85,7 +85,7 @@ func (s *adminRoomService) Create(ctx context.Context, theaterID int64, form dto
 func (s *adminRoomService) Update(ctx context.Context, id int64, form dto.AdminRoomForm) error {
 	expectedUpdatedAt, err := time.Parse(time.RFC3339Nano, form.UpdatedAt)
 	if err != nil {
-		return apperrors.ErrRecordModified
+		return apperrors.ErrRecordTokenInvalid
 	}
 	room, err := s.rooms.FindByID(ctx, id)
 	if err != nil {

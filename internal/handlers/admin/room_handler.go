@@ -130,7 +130,7 @@ func (h *RoomHandler) Update(c *echo.Context) error {
 		return h.renderFormError(c, h.editView(c, room, form), err)
 	}
 	if err := h.service.Update(ctx, id, form); err != nil {
-		if errors.Is(err, apperrors.ErrRecordModified) {
+		if errors.Is(err, apperrors.ErrRecordModified) || errors.Is(err, apperrors.ErrRecordTokenInvalid) {
 			form.UpdatedAt = updatedAtToken(room.UpdatedAt)
 		}
 		return h.renderFormError(c, h.editView(c, room, form), err)
@@ -214,6 +214,9 @@ func (h *RoomHandler) renderFormError(c *echo.Context, view RoomFormView, err er
 	case errors.Is(err, apperrors.ErrRecordModified):
 		view.Error = "Someone else changed this room while you were editing. Reload to see the latest data, or save again to overwrite it."
 		return h.renderForm(c, http.StatusConflict, view)
+	case errors.Is(err, apperrors.ErrRecordTokenInvalid):
+		view.Error = "The form was submitted without a valid version token, so nothing was saved. Submit again to retry."
+		return h.renderForm(c, http.StatusBadRequest, view)
 	default:
 		fields, message, ok := fieldErrors(err)
 		if !ok {
