@@ -43,6 +43,7 @@ func Connect(opts Options) (*gorm.DB, error) {
 		),
 		NowFunc:              func() time.Time { return time.Now().UTC() },
 		DisableAutomaticPing: true,
+		TranslateError:       true,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("open PostgreSQL connection: %w", err)

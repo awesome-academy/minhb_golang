@@ -60,7 +60,22 @@ func BindAndValidate(c *echo.Context, request any) error {
 	if err := c.Bind(request); err != nil {
 		return APIErrorFrom(http.StatusBadRequest, "invalid request body", err)
 	}
+	trimStringFields(request)
 	return c.Validate(request)
+}
+
+func trimStringFields(request any) {
+	v := reflect.ValueOf(request)
+	if v.Kind() != reflect.Pointer || v.Elem().Kind() != reflect.Struct {
+		return
+	}
+	v = v.Elem()
+	for i := 0; i < v.NumField(); i++ {
+		field := v.Field(i)
+		if field.Kind() == reflect.String && field.CanSet() {
+			field.SetString(strings.TrimSpace(field.String()))
+		}
+	}
 }
 
 func fieldLabel(request any, fe validator.FieldError) string {

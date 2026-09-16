@@ -6,7 +6,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/labstack/echo/v5"
 
@@ -168,7 +167,7 @@ func (h *MovieHandler) Update(c *echo.Context) error {
 		return h.renderFormError(c, h.editView(c, movie, form), err)
 	}
 	if err := h.service.Update(ctx, id, form); err != nil {
-		if errors.Is(err, apperrors.ErrMovieModified) || errors.Is(err, apperrors.ErrMovieTokenInvalid) {
+		if errors.Is(err, apperrors.ErrRecordModified) || errors.Is(err, apperrors.ErrRecordTokenInvalid) {
 			form.UpdatedAt = updatedAtToken(movie.UpdatedAt)
 		}
 		return h.renderFormError(c, h.editView(c, movie, form), err)
@@ -239,10 +238,10 @@ func (h *MovieHandler) renderFormError(c *echo.Context, view MovieFormView, err 
 		view.Errors = map[string]string{"genre_ids": "One or more genres do not exist"}
 	case errors.Is(err, apperrors.ErrMovieCastInvalid):
 		view.Errors = map[string]string{"cast": "Each cast member needs an actor name"}
-	case errors.Is(err, apperrors.ErrMovieModified):
+	case errors.Is(err, apperrors.ErrRecordModified):
 		view.Error = "Someone else changed this movie while you were editing. Reload to see the latest data, or save again to overwrite it."
 		return h.renderForm(c, http.StatusConflict, view)
-	case errors.Is(err, apperrors.ErrMovieTokenInvalid):
+	case errors.Is(err, apperrors.ErrRecordTokenInvalid):
 		view.Error = "The form was submitted without a valid version token, so nothing was saved. Submit again to retry."
 		return h.renderForm(c, http.StatusBadRequest, view)
 	default:
@@ -253,14 +252,6 @@ func (h *MovieHandler) renderFormError(c *echo.Context, view MovieFormView, err 
 		view.Errors, view.Error = fields, message
 	}
 	return h.renderForm(c, http.StatusUnprocessableEntity, view)
-}
-
-func parsePage(raw string) int {
-	page, err := strconv.Atoi(raw)
-	if err != nil || page < 1 {
-		return 1
-	}
-	return page
 }
 
 func toMovieRows(movies []models.Movie) []MovieRow {
@@ -327,51 +318,4 @@ func genreOptions(genres []models.Genre, selected []int64) []GenreOption {
 		options = append(options, GenreOption{ID: genre.ID, Name: genre.Name, Checked: slices.Contains(selected, genre.ID)})
 	}
 	return options
-}
-
-func fieldErrors(err error) (map[string]string, string, bool) {
-	var validationErr utils.ValidationError
-	if errors.As(err, &validationErr) {
-		fields := make(map[string]string, len(validationErr.Errors))
-		for _, fieldErr := range validationErr.Errors {
-			key := fieldKey(fieldErr.Field)
-			if _, exists := fields[key]; !exists {
-				fields[key] = fieldErr.Message
-			}
-		}
-		return fields, "", true
-	}
-	var apiErr utils.APIErrorResponse
-	if errors.As(err, &apiErr) && apiErr.ErrorCode == http.StatusBadRequest {
-		return nil, "Please check the form", true
-	}
-	return nil, "", false
-}
-
-func fieldKey(field string) string {
-	if i := strings.IndexByte(field, '['); i >= 0 {
-		field = field[:i]
-	}
-	if strings.HasPrefix(field, "cast_") {
-		return "cast"
-	}
-	return field
-}
-
-func at(values []string, i int) string {
-	if i < len(values) {
-		return values[i]
-	}
-	return ""
-}
-
-func updatedAtToken(t time.Time) string {
-	return t.UTC().Format(time.RFC3339Nano)
-}
-
-func derefString(s *string) string {
-	if s == nil {
-		return ""
-	}
-	return *s
 }
