@@ -318,7 +318,7 @@ func (h *ShowtimeHandler) formView(c *echo.Context, theaterID int64, form dto.Ad
 		CSRFToken:  csrfToken(c),
 		Action:     showtimesPath,
 		Submit:     "Create showtime",
-		BackURL:    showtimesPath,
+		BackURL:    listURL(c),
 		Formats:    showtimeFormats,
 		Back:       backQuery(c),
 		Form:       form,

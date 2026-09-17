@@ -151,6 +151,9 @@ func (r *showtimeRepository) Create(ctx context.Context, showtime *models.Showti
 
 func (r *showtimeRepository) Update(ctx context.Context, showtime *models.Showtime, prices []models.ShowtimePrice, expectedUpdatedAt time.Time) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := lockRoom(tx, showtime.RoomID); err != nil {
+			return err
+		}
 		var current models.Showtime
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&current, "id = ?", showtime.ID).Error; err != nil {
 			return err
@@ -171,9 +174,6 @@ func (r *showtimeRepository) Update(ctx context.Context, showtime *models.Showti
 			if locked {
 				return apperrors.ErrShowtimeHasBookings
 			}
-		}
-		if err := lockRoom(tx, showtime.RoomID); err != nil {
-			return err
 		}
 		if err := checkOverlap(tx, showtime, showtime.ID); err != nil {
 			return err
