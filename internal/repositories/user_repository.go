@@ -2,10 +2,12 @@ package repositories
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"gorm.io/gorm"
 
+	apperrors "cinema-booking/internal/errors"
 	"cinema-booking/internal/models"
 )
 
@@ -13,6 +15,7 @@ type UserRepository interface {
 	FindByEmail(ctx context.Context, email string) (*models.User, error)
 	FindByID(ctx context.Context, id int64) (*models.User, error)
 	UpdateLastLogin(ctx context.Context, id int64) error
+	Create(ctx context.Context, user *models.User) error
 }
 
 type userRepository struct {
@@ -44,4 +47,14 @@ func (r *userRepository) UpdateLastLogin(ctx context.Context, id int64) error {
 		Model(&models.User{}).
 		Where("id = ?", id).
 		UpdateColumn("last_login_at", time.Now().UTC()).Error
+}
+
+func (r *userRepository) Create(ctx context.Context, user *models.User) error {
+	if err := r.db.WithContext(ctx).Create(user).Error; err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return apperrors.ErrEmailTaken
+		}
+		return err
+	}
+	return nil
 }

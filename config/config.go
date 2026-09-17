@@ -11,6 +11,8 @@ import (
 	"github.com/joho/godotenv"
 )
 
+const minJWTSecretLength = 32
+
 type Config struct {
 	HTTPAddr    string
 	DatabaseURL string
@@ -23,6 +25,9 @@ type Config struct {
 
 	AdminSessionTTL   time.Duration
 	AdminCookieSecure bool
+
+	JWTSecret    string
+	JWTAccessTTL time.Duration
 
 	LogLevel  string
 	LogFormat string
@@ -53,6 +58,10 @@ func Load() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	jwtAccessTTL, err := getEnvDuration("JWT_ACCESS_TTL", 2*time.Hour)
+	if err != nil {
+		return nil, err
+	}
 	logFormat := getEnv("LOG_FORMAT", "text")
 	cfg := &Config{
 		HTTPAddr:          getEnv("HTTP_ADDR", ":8080"),
@@ -64,6 +73,8 @@ func Load() (*Config, error) {
 		DBLogColorful:     strings.EqualFold(logFormat, "text"),
 		AdminSessionTTL:   sessionTTL,
 		AdminCookieSecure: cookieSecure,
+		JWTSecret:         os.Getenv("JWT_SECRET"),
+		JWTAccessTTL:      jwtAccessTTL,
 		LogLevel:          getEnv("LOG_LEVEL", "info"),
 		LogFormat:         logFormat,
 	}
@@ -72,6 +83,12 @@ func Load() (*Config, error) {
 	}
 	if cfg.RedisURL == "" {
 		return nil, errors.New("REDIS_URL is required")
+	}
+	if cfg.JWTSecret == "" {
+		return nil, errors.New("JWT_SECRET is required")
+	}
+	if len(cfg.JWTSecret) < minJWTSecretLength {
+		return nil, fmt.Errorf("JWT_SECRET must be at least %d characters", minJWTSecretLength)
 	}
 
 	return cfg, nil

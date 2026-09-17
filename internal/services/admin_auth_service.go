@@ -5,15 +5,12 @@ import (
 	"errors"
 	"log/slog"
 
-	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 
 	apperrors "cinema-booking/internal/errors"
 	"cinema-booking/internal/models"
 	"cinema-booking/internal/repositories"
 )
-
-const dummyPasswordHash = "$2a$10$sNzmkAV9SR7hp1iuvK4Ga.R03fZYu/iPaMNdTNtz3oGLGIzB087dG"
 
 type AdminAuthService interface {
 	Login(ctx context.Context, email, password string) (string, error)
@@ -35,12 +32,12 @@ func (s *adminAuthService) Login(ctx context.Context, email, password string) (s
 		return "", err
 	}
 
-	hash := dummyPasswordHash
+	hash := ""
 	if user != nil {
 		hash = user.PasswordHash
 	}
-	bcryptErr := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
-	if user == nil || user.Role != models.UserRoleAdmin || bcryptErr != nil {
+	passwordOK := verifyPassword(hash, password)
+	if user == nil || user.Role != models.UserRoleAdmin || !passwordOK {
 		return "", apperrors.ErrInvalidCredentials
 	}
 

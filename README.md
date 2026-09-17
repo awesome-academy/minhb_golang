@@ -1,6 +1,6 @@
 # Cinema Booking API
 
-Backend web đặt vé rạp chiếu phim viết bằng Go, Echo v5, GORM v2 và PostgreSQL 15; Redis 7 chỉ giữ session admin SSR. Code tổ chức theo luồng `handler → service → repository`, có Swagger UI tại `/swaggers`.
+Backend web đặt vé rạp chiếu phim viết bằng Go, Echo v5, GORM v2 và PostgreSQL 15; Redis 7 giữ session admin SSR và denylist access token user đã logout. Code tổ chức theo luồng `handler → service → repository`, có Swagger UI tại `/swaggers`.
 
 ## Yêu cầu
 
@@ -17,12 +17,13 @@ config/                  # Load .env / biến môi trường
 api/swagger/             # Swagger spec sinh tự động — không sửa tay
 migrations/              # gormigrate, mỗi migration là raw SQL trong file Go (7 migration: extension, enum, 12 bảng)
 internal/
+├── user_auth/           # JWT cho user API: Claims, TokenManager (ký/parse HS256, jti, role)
 ├── dto/                 # Request/response DTO (json + validate + example tags)
-├── errors/              # Sentinel error nghiệp vụ dùng chung (ErrInvalidCredentials, ErrSessionNotFound), import alias apperrors
-├── middleware/          # AdminCSRF, AdminNoStore, RequireAdminSession, helper cookie AdminSessionCookie
+├── errors/              # Sentinel error nghiệp vụ dùng chung (ErrInvalidCredentials, ErrEmailTaken...), import alias apperrors
+├── middleware/          # AdminCSRF, AdminNoStore, RequireAdminSession, RequireUser (JWT), helper cookie AdminSessionCookie
 ├── handlers/            # routes.go duy nhất đăng ký mọi route, health handler, HTTP error handler
 │   ├── admin/           # Handler admin SSR (package admin)
-│   └── user/            # Handler REST API cho user (package user, thêm từ U1)
+│   └── user/            # Handler REST API cho user (package user): auth_handler.go
 ├── models/              # GORM model
 ├── repositories/        # Truy vấn GORM
 ├── services/            # Business logic
@@ -30,7 +31,7 @@ internal/
 pkg/
 ├── db/                  # Kết nối GORM/pgx, pool
 ├── logger/              # Khởi tạo slog
-└── redis/               # Kết nối go-redis (session admin), ping khi khởi động
+└── redis/               # Kết nối go-redis (session admin, token user), ping khi khởi động
 web/                     # Admin SSR: template html/template + static CSS, embed vào binary
 ├── templates/admin/     # layout.html + một file mỗi trang (login.html, dashboard.html, error.html...), cho phép thư mục con
 └── static/              # bootstrap.min.css (5.3.3, vendored) + admin.css
@@ -71,9 +72,10 @@ SQL
 | Build toàn bộ | `go build ./...` |
 | Kiểm tra tĩnh | `go vet ./...` |
 | Format | `gofmt -w <files>` |
-| Sinh lại Swagger | `go run github.com/swaggo/swag/cmd/swag@v1.16.6 init --parseInternal -g cmd/app/main.go -o api/swagger --packageName swagger` |
+| Sinh lại Swagger (OpenAPI 3.1) | `go run github.com/swaggo/swag/v2/cmd/swag@v2.0.0-rc4 init --v3.1 --parseInternal -g cmd/app/main.go -o api/swagger --packageName swagger` |
 | PostgreSQL + Redis up / down | `docker compose up -d cinema-postgres cinema-redis` / `docker compose down` |
 | Xem session admin trong Redis | `docker compose exec -T cinema-redis redis-cli --scan --pattern 'admin_session:*'` |
+| Xem token user trong Redis | `docker compose exec -T cinema-redis redis-cli --scan --pattern 'user_*'` |
 
 ## Biến môi trường
 
@@ -88,6 +90,8 @@ SQL
 | `REDIS_URL` | bắt buộc | Redis URL (`redis://[:pass@]host:port/db`), chỉ giữ session admin; thiếu hoặc ping lỗi → app dừng ngay |
 | `ADMIN_SESSION_TTL` | `8h` | Go duration > 0; TTL key Redis và `Max-Age` cookie `admin_session`, sliding: mỗi request admin hợp lệ gia hạn lại từ đầu (`GETEX`), hết hạn khi không thao tác quá TTL |
 | `ADMIN_COOKIE_SECURE` | `false` | `true` khi admin chạy qua HTTPS; dev HTTP phải để `false` (cookie `Secure` không gửi qua HTTP) |
+| `JWT_SECRET` | bắt buộc | Khóa ký HS256 cho JWT user API, tối thiểu 32 ký tự; thiếu hoặc ngắn hơn → app dừng ngay |
+| `JWT_ACCESS_TTL` | `2h` | Go duration > 0; thời gian sống access token; hết hạn thì client đăng nhập lại |
 | `POSTGRES_*` | `cinema` / `5434` | Chỉ dùng bởi Docker Compose |
 | `REDIS_PORT` | `6380` | Chỉ dùng bởi Docker Compose (host port của `cinema-redis`) |
 
@@ -96,6 +100,16 @@ SQL
 ### API
 
 - Endpoint chi tiết nhận `id` (`/api/movies/:id`, `/api/theaters/:id`, `/api/bookings/:id`), không dùng `slug`. `slug` chỉ là dữ liệu trả về cho FE dựng URL.
+- JSON key kiểu camelCase (`fullName`, `accessToken`, `errorCode`).
+
+### Xác thực user (JWT)
+
+- Route: `POST /api/auth/register`, `/login` (public); `POST /api/auth/logout`, `GET /api/auth/me` (cần Bearer). Endpoint cần đăng nhập đăng ký với middleware `userAuth` (`appmw.RequireUser`) được dựng trong `main.go` và truyền vào `handlers.RegisterRoutes`; trong handler lấy user bằng `middleware.CurrentUser(c)`, claims bằng `middleware.CurrentClaims(c)`.
+- Token: chỉ có access token, JWT HS256 (`internal/user_auth.TokenManager`), claims `sub` = user id, `jti`, `role`, `iss` = `cinema-booking`, `exp` bắt buộc. Không có refresh token: hết hạn thì đăng nhập lại.
+- Redis: `user_access_revoked:{jti}` là denylist các access token đã logout, TTL = thời gian còn lại của token nên key tự hết hạn cùng token. `RequireUser` từ chối token có jti trong denylist và token của user đã bị xóa mềm.
+- Logout: `POST /api/auth/logout` với Bearer token hiện tại, không có body; token đó bị từ chối ngay ở mọi endpoint protected. Gọi lại lần hai nhận 401 `access token has been revoked`.
+- Lỗi: 401 cho sai mật khẩu/email không tồn tại (cùng message `invalid email or password`), token thiếu/hết hạn/bị thu hồi/sai loại; 409 `email already exists` khi đăng ký trùng (so `lower(email)`); 400 validation (`password` 8–72 ký tự).
+- Admin SSR không dùng JWT; session cookie Redis giữ nguyên như mô tả ở trên.
 
 ### Admin SSR
 
@@ -119,12 +133,12 @@ Mọi lỗi đều là JSON cùng dạng, do `internal/handlers/error_handler.go
 {"errorCode": 400, "errorMessage": "email is required", "errors": [{"field": "email", "message": "email is required"}]}
 ```
 
-Trong handler: bind + validate bằng `utils.BindAndValidate(c, &req)`; lỗi từ service đi qua `utils.ServiceError(err)`, hàm này map `gorm.ErrRecordNotFound` → 404, còn lại → 500 (chi tiết chỉ ra log, không ra client). Map mã lỗi Postgres (23505, 23P01...) sẽ thêm khi có endpoint ghi dữ liệu. Lỗi có trạng thái sẵn (`utils.APIError(status, msg)`) đi qua nguyên vẹn.
+Trong handler: bind + validate bằng `utils.BindAndValidate(c, &req)`; lỗi từ service đi qua `utils.ServiceError(err)`, hàm này map `gorm.ErrRecordNotFound` → 404, còn lại → 500 (chi tiết chỉ ra log, không ra client). Sentinel error nghiệp vụ (`apperrors.ErrEmailTaken` → 409, `ErrInvalidCredentials` → 401...) được handler map tường minh trước khi rơi về `ServiceError`; unique violation Postgres đi qua GORM `TranslateError` thành `gorm.ErrDuplicatedKey` và được repository đổi sang sentinel tương ứng. Lỗi có trạng thái sẵn (`utils.APIError(status, msg)`) đi qua nguyên vẹn.
 
 ### Swagger
 
 - Thông tin chung nằm trên `main()` trong `cmd/app/main.go`.
-- Mỗi handler public có block annotation ngay trên hàm: `@Summary`, `@Tags`, `@Accept`/`@Produce`, `@Param`, `@Success`, `@Failure` (dùng `utils.APIErrorResponse` / `utils.ValidationError`), `@Router /path [method]` (đường dẫn tương đối với `@BasePath /api`); endpoint cần đăng nhập thêm `@Security BearerAuth`.
+- Mỗi handler public có block annotation ngay trên hàm: `@Summary`, `@Tags`, `@Accept`/`@Produce`, `@Param`, `@Success`, `@Failure` (dùng `utils.APIErrorResponse` / `utils.ValidationError`), `@Router /path [method]` (đường dẫn tương đối với `@BasePath /api`); endpoint cần đăng nhập thêm `@Security bearerauth` (tên scheme viết thường, swag v2 đặt cố định; scheme kiểu `http bearer` nên trên Swagger UI chỉ cần dán access token, không gõ `Bearer `).
 - DTO response có tag `example:"..."`. Sau khi sửa annotation chạy lệnh sinh Swagger ở trên và commit `api/swagger/`.
 
 ### Migration
