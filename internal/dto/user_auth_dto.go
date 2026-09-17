@@ -11,7 +11,7 @@ type RegisterRequest struct {
 	Password    string `json:"password" validate:"required,min=8,max=72" example:"Password123"`
 	FullName    string `json:"fullName" validate:"required,max=100" example:"Nguyen Van A"`
 	Phone       string `json:"phone" validate:"omitempty,max=20" example:"0901234567"`
-	DateOfBirth string `json:"dateOfBirth" validate:"omitempty,datetime=2006-01-02" example:"1995-06-15"`
+	DateOfBirth string `json:"dateOfBirth" validate:"omitempty,datetime=2006-01-02,pastdate" example:"1995-06-15"`
 	AvatarURL   string `json:"avatarUrl" validate:"omitempty,url,max=2048" example:"https://cdn.example.com/avatars/1.png"`
 }
 

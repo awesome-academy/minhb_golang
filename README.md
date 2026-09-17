@@ -76,7 +76,6 @@ SQL
 | PostgreSQL + Redis up / down | `docker compose up -d cinema-postgres cinema-redis` / `docker compose down` |
 | Xem session admin trong Redis | `docker compose exec -T cinema-redis redis-cli --scan --pattern 'admin_session:*'` |
 | Xem token user trong Redis | `docker compose exec -T cinema-redis redis-cli --scan --pattern 'user_*'` |
-| Chạy test | `go test ./...` |
 
 ## Biến môi trường
 

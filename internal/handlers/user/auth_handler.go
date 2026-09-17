@@ -28,7 +28,7 @@ func NewAuthHandler(authService services.UserAuthService) *AuthHandler {
 // @Produce json
 // @Param request body dto.RegisterRequest true "Registration payload"
 // @Success 201 {object} dto.AuthResponse
-// @Failure 400 {object} utils.ValidationError "validation failed or dateOfBirth must be in the past"
+// @Failure 400 {object} utils.ValidationError "validation failed"
 // @Failure 409 {object} utils.APIErrorResponse "email already exists"
 // @Failure 500 {object} utils.APIErrorResponse
 // @Router /auth/register [post]
@@ -117,8 +117,6 @@ func authError(err error) error {
 	switch {
 	case errors.Is(err, apperrors.ErrEmailTaken):
 		return utils.APIError(http.StatusConflict, err.Error())
-	case errors.Is(err, apperrors.ErrDateOfBirthInFuture):
-		return utils.APIError(http.StatusBadRequest, err.Error())
 	case errors.Is(err, apperrors.ErrInvalidCredentials):
 		return utils.APIError(http.StatusUnauthorized, err.Error())
 	default:

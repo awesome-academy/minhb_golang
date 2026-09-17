@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v5"
@@ -23,6 +24,9 @@ func NewRequestValidator() *RequestValidator {
 		}
 		return name
 	})
+	if err := v.RegisterValidation("pastdate", isPastDate); err != nil {
+		panic(err)
+	}
 	return &RequestValidator{validate: v}
 }
 
@@ -111,6 +115,8 @@ func validationMessage(field string, fe validator.FieldError) string {
 			return field + " must be a date and time"
 		}
 		return field + " must be a date in format YYYY-MM-DD"
+	case "pastdate":
+		return field + " must be in the past"
 	case "oneof":
 		return field + " must be one of: " + fe.Param()
 	case "gt", "gte", "lt", "lte":
@@ -118,4 +124,17 @@ func validationMessage(field string, fe validator.FieldError) string {
 	default:
 		return field + " failed validation rule " + fe.Tag()
 	}
+}
+
+func isPastDate(fl validator.FieldLevel) bool {
+	value, ok := fl.Field().Interface().(string)
+	if !ok {
+		return false
+	}
+	date, err := time.ParseInLocation(time.DateOnly, value, time.UTC)
+	if err != nil {
+		return true
+	}
+	today := time.Now().UTC().Truncate(24 * time.Hour)
+	return date.Before(today)
 }

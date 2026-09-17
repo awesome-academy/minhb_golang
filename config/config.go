@@ -58,7 +58,7 @@ func Load() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	jwtAccessTTL, err := getEnvDuration("JWT_ACCESS_TTL", 24*time.Hour)
+	jwtAccessTTL, err := getEnvDuration("JWT_ACCESS_TTL", 2*time.Hour)
 	if err != nil {
 		return nil, err
 	}

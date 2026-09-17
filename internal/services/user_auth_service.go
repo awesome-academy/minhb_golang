@@ -49,7 +49,7 @@ func NewUserAuthService(users repositories.UserRepository, tokens repositories.U
 }
 
 func (s *userAuthService) Register(ctx context.Context, input RegisterUserInput) (*models.User, string, error) {
-	dateOfBirth, err := parseDateOfBirth(input.DateOfBirth, s.now())
+	dateOfBirth, err := parseDateOfBirth(input.DateOfBirth)
 	if err != nil {
 		return nil, "", err
 	}
@@ -109,16 +109,13 @@ func (s *userAuthService) Login(ctx context.Context, email, password string) (st
 	return token.Value, nil
 }
 
-func parseDateOfBirth(value string, now time.Time) (*time.Time, error) {
+func parseDateOfBirth(value string) (*time.Time, error) {
 	if value == "" {
 		return nil, nil
 	}
 	dateOfBirth, err := time.ParseInLocation(dateOfBirthLayout, value, time.UTC)
 	if err != nil {
 		return nil, fmt.Errorf("parse dateOfBirth: %w", err)
-	}
-	if !dateOfBirth.Before(now.Truncate(24 * time.Hour)) {
-		return nil, apperrors.ErrDateOfBirthInFuture
 	}
 	return &dateOfBirth, nil
 }

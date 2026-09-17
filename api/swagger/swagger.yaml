@@ -250,7 +250,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/utils.ValidationError'
-          description: validation failed or dateOfBirth must be in the past
+          description: validation failed
         "409":
           content:
             application/json:
