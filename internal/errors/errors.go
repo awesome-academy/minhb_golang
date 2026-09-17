@@ -6,8 +6,11 @@ import (
 )
 
 var (
-	ErrInvalidCredentials   = errors.New("invalid admin credentials")
+	ErrInvalidCredentials   = errors.New("invalid email or password")
 	ErrSessionNotFound      = errors.New("admin session not found")
+	ErrEmailTaken           = errors.New("email already exists")
+	ErrAccessTokenRevoked   = errors.New("access token has been revoked")
+	ErrDateOfBirthInFuture  = errors.New("dateOfBirth must be in the past")
 	ErrMovieGenreInvalid    = errors.New("movie genre does not exist")
 	ErrMovieCastInvalid     = errors.New("movie cast member missing name")
 	ErrMovieHasShowtimes    = errors.New("movie has upcoming showtimes")

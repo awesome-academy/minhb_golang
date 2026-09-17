@@ -15,6 +15,7 @@ import (
 	appmw "cinema-booking/internal/middleware"
 	"cinema-booking/internal/repositories"
 	"cinema-booking/internal/services"
+	"cinema-booking/internal/user_auth"
 	"cinema-booking/internal/utils"
 	"cinema-booking/pkg/db"
 	"cinema-booking/pkg/logger"
@@ -27,10 +28,8 @@ import (
 // @description REST API cho web đặt vé rạp chiếu phim.
 // @BasePath /api
 // @schemes http
-// @securityDefinitions.apikey BearerAuth
-// @in header
-// @name Authorization
-// @description Nhập `Bearer {access token}`.
+// @securityDefinitions.bearerauth BearerAuth
+// @description Nhập access token, Swagger UI tự thêm tiền tố `Bearer `.
 func main() {
 	if err := run(); err != nil {
 		slog.Error("application stopped", "error", err)
@@ -86,7 +85,7 @@ func run() error {
 	e.GET("/swaggers", func(c *echo.Context) error {
 		return c.Redirect(http.StatusFound, "/swaggers/index.html")
 	})
-	e.GET("/swaggers/*", echoSwagger.WrapHandler)
+	e.GET("/swaggers/*", echoSwagger.EchoWrapHandlerV3(echoSwagger.PersistAuthorization(true)))
 
 	// Repositories
 	healthRepository := repositories.NewHealthRepository(database)
@@ -99,9 +98,12 @@ func run() error {
 	seatTypeRepository := repositories.NewSeatTypeRepository(database)
 	showtimeRepository := repositories.NewShowtimeRepository(database)
 	adminSessionRepository := repositories.NewAdminSessionRepository(redisClient, cfg.AdminSessionTTL)
+	userTokenRepository := repositories.NewUserTokenRepository(redisClient)
 
 	// Services
+	tokenManager := userauth.NewTokenManager(cfg.JWTSecret, cfg.JWTAccessTTL)
 	healthService := services.NewHealthService(healthRepository)
+	userAuthService := services.NewUserAuthService(userRepository, userTokenRepository, tokenManager)
 	adminAuthService := services.NewAdminAuthService(userRepository, adminSessionRepository)
 	adminMovieService := services.NewAdminMovieService(movieRepository, genreRepository)
 	adminTheaterService := services.NewAdminTheaterService(theaterRepository)
@@ -112,11 +114,13 @@ func run() error {
 	// Middleware
 	adminCookie := appmw.AdminSessionCookie{Secure: cfg.AdminCookieSecure, TTL: cfg.AdminSessionTTL}
 	adminSession := appmw.RequireAdminSession(adminCookie, adminSessionRepository, userRepository)
+	userAuth := appmw.RequireUser(tokenManager, userTokenRepository, userRepository)
 
 	// Handlers
 	handlers.RegisterRoutes(
 		e,
 		healthService,
+		userAuthService,
 		adminAuthService,
 		adminMovieService,
 		adminTheaterService,
@@ -125,6 +129,7 @@ func run() error {
 		adminShowtimeService,
 		adminCookie,
 		adminSession,
+		userAuth,
 	)
 
 	return e.Start(cfg.HTTPAddr)

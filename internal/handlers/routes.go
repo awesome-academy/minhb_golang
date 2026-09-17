@@ -4,6 +4,7 @@ import (
 	"github.com/labstack/echo/v5"
 
 	"cinema-booking/internal/handlers/admin"
+	"cinema-booking/internal/handlers/user"
 	"cinema-booking/internal/middleware"
 	"cinema-booking/internal/services"
 )
@@ -11,6 +12,7 @@ import (
 func RegisterRoutes(
 	e *echo.Echo,
 	healthService services.HealthService,
+	userAuthService services.UserAuthService,
 	adminAuthService services.AdminAuthService,
 	adminMovieService services.AdminMovieService,
 	adminTheaterService services.AdminTheaterService,
@@ -19,9 +21,11 @@ func RegisterRoutes(
 	adminShowtimeService services.AdminShowtimeService,
 	adminCookie middleware.AdminSessionCookie,
 	adminSession echo.MiddlewareFunc,
+	userAuth echo.MiddlewareFunc,
 ) {
 	api := e.Group("/api")
 	registerHealthRoutes(api, NewHealthHandler(healthService))
+	registerUserRoutes(api, user.NewAuthHandler(userAuthService), userAuth)
 
 	adminGroup := e.Group(middleware.AdminPathPrefix)
 	registerAdminRoutes(
@@ -39,6 +43,14 @@ func RegisterRoutes(
 
 func registerHealthRoutes(api *echo.Group, handler *HealthHandler) {
 	api.GET("/health", handler.Check)
+}
+
+func registerUserRoutes(api *echo.Group, auth *user.AuthHandler, userAuth echo.MiddlewareFunc) {
+	g := api.Group("/auth")
+	g.POST("/register", auth.Register)
+	g.POST("/login", auth.Login)
+	g.POST("/logout", auth.Logout, userAuth)
+	g.GET("/me", auth.Me, userAuth)
 }
 
 func registerAdminRoutes(
