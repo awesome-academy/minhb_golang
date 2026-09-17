@@ -1,0 +1,81 @@
+{{define "userbar"}}{{template "admin-nav" .}}{{end}}
+
+{{define "content"}}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <h1 class="h4 mb-0">Showtimes</h1>
+  <a class="btn btn-dark btn-sm" href="{{.NewURL}}">New showtime</a>
+</div>
+{{with .Flash.Message}}
+<div class="alert alert-{{$.Flash.Kind}} alert-dismissible py-2">
+  {{.}}
+  <button type="button" class="btn-close" aria-label="Close" onclick="this.parentElement.remove()"></button>
+</div>
+{{end}}
+<form method="get" action="/admin/showtimes" class="d-flex flex-wrap align-items-center gap-2 mb-3">
+  <select class="form-select form-select-sm w-auto" name="theater_id" aria-label="Theater">
+    <option value="">All theaters</option>
+    {{range .Theaters}}<option value="{{.ID}}" {{if eq .ID $.TheaterID}}selected{{end}}>{{.Name}}</option>{{end}}
+  </select>
+  <input class="form-control form-control-sm w-auto" type="date" name="from" value="{{.From}}" aria-label="From date">
+  <span class="text-secondary small">to</span>
+  <input class="form-control form-control-sm w-auto" type="date" name="to" value="{{.To}}" aria-label="To date">
+  <select class="form-select form-select-sm w-auto" name="status" aria-label="Status">
+    <option value="">All statuses</option>
+    {{range .Statuses}}<option value="{{.Value}}" {{if eq .Value $.Status}}selected{{end}}>{{.Label}}</option>{{end}}
+  </select>
+  <select class="form-select form-select-sm w-auto" name="published" aria-label="Visibility">
+    <option value="">All</option>
+    <option value="published" {{if eq .PublishedFilter "published"}}selected{{end}}>Published</option>
+    <option value="draft" {{if eq .PublishedFilter "draft"}}selected{{end}}>Draft</option>
+  </select>
+  <button type="submit" class="btn btn-outline-dark btn-sm">Filter</button>
+  {{if .HasFilter}}<a class="btn btn-link btn-sm" href="/admin/showtimes">Clear</a>{{end}}
+</form>
+{{if .Rows}}
+<div class="table-responsive">
+  <table class="table table-sm align-middle bg-white">
+    <thead>
+      <tr>
+        <th>Date</th><th>Time</th><th>Theater</th><th>Room</th><th>Movie</th><th>Format</th><th>Price from</th><th>Status</th><th class="text-end">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Rows}}
+      <tr>
+        <td class="text-nowrap">{{.Date}}</td>
+        <td class="text-nowrap">{{.Time}}</td>
+        <td>{{.Theater}}</td>
+        <td>{{.Room}}</td>
+        <td>{{if .CanEdit}}<a class="text-decoration-none" href="{{.EditURL}}">{{.Movie}}</a>{{else}}{{.Movie}}{{end}}</td>
+        <td>{{.Format}}</td>
+        <td>{{.PriceFrom}}</td>
+        <td class="text-nowrap"><span class="badge text-bg-{{.Badge}}">{{.Status}}</span> {{if .Published}}<span class="badge text-bg-primary">Published</span>{{else}}<span class="badge text-bg-light text-dark border">Draft</span>{{end}}{{if .Bookings}} <span class="badge text-bg-info">{{.Bookings}} booking{{if ne .Bookings 1}}s{{end}}</span>{{end}}</td>
+        <td class="text-end text-nowrap">
+          {{if .CanEdit}}
+          <a class="btn btn-outline-dark btn-sm" href="{{.EditURL}}">Edit</a>
+          <form method="post" action="/admin/showtimes/{{.ID}}/publish" class="d-inline">
+            <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+            <input type="hidden" name="back" value="{{$.Back}}">
+            {{if .Published}}<button type="submit" class="btn btn-outline-warning btn-sm">Unpublish</button>{{else}}<button type="submit" class="btn btn-outline-success btn-sm">Publish</button>{{end}}
+          </form>
+          <form method="post" action="/admin/showtimes/{{.ID}}/cancel" class="d-inline" onsubmit="return confirm('{{if .Bookings}}Cancel this showtime? {{.Bookings}} booking(s) will be cancelled and their seats released. Refunds are handled outside the system.{{else}}Cancel this showtime?{{end}}')">
+            <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+            <input type="hidden" name="back" value="{{$.Back}}">
+            <button type="submit" class="btn btn-outline-danger btn-sm">Cancel</button>
+          </form>
+          {{end}}
+        </td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+<div class="d-flex align-items-center gap-2">
+  {{if .HasPrev}}<a class="btn btn-outline-secondary btn-sm" href="{{.PrevURL}}">Previous</a>{{end}}
+  <span class="text-secondary small">Page {{.Page}} of {{.TotalPages}} · {{.Total}} showtimes</span>
+  {{if .HasNext}}<a class="btn btn-outline-secondary btn-sm" href="{{.NextURL}}">Next</a>{{end}}
+</div>
+{{else}}
+<p class="text-secondary">No showtimes found.{{if .HasPrev}} <a href="{{.FirstURL}}">Back to the first page</a>.{{end}}</p>
+{{end}}
+{{end}}

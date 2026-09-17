@@ -10,6 +10,7 @@ import (
 
 	"github.com/labstack/echo/v5"
 
+	apperrors "cinema-booking/internal/errors"
 	"cinema-booking/internal/middleware"
 	"cinema-booking/internal/utils"
 )
@@ -62,6 +63,10 @@ func parsePage(raw string) int {
 }
 
 func fieldErrors(err error) (map[string]string, string, bool) {
+	var formErrs apperrors.FieldErrors
+	if errors.As(err, &formErrs) {
+		return formErrs, "", true
+	}
 	var validationErr utils.ValidationError
 	if errors.As(err, &validationErr) {
 		fields := make(map[string]string, len(validationErr.Errors))
@@ -92,6 +97,10 @@ func fieldKey(field string) string {
 
 func updatedAtToken(t time.Time) string {
 	return t.UTC().Format(time.RFC3339Nano)
+}
+
+func formatVN(t time.Time, layout string) string {
+	return t.In(utils.Location).Format(layout)
 }
 
 func derefString(s *string) string {

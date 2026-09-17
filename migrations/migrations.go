@@ -31,6 +31,8 @@ func New(db *gorm.DB) *gormigrate.Gormigrate {
 			migrationCreateTheatersRoomsSeats(),
 			migrationCreateShowtimesAndPrices(),
 			migrationCreateBookingsAndTickets(),
+			migrationAddShowtimesIsPublished(),
+			migrationAddBookingStatusCancelled(),
 		},
 	)
 }

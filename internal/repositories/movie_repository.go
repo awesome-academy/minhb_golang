@@ -13,6 +13,7 @@ import (
 
 type MovieRepository interface {
 	List(ctx context.Context, search string, offset, limit int) ([]models.Movie, int64, error)
+	ListAvailable(ctx context.Context) ([]models.Movie, error)
 	FindByID(ctx context.Context, id int64) (*models.Movie, error)
 	Create(ctx context.Context, movie *models.Movie, genreIDs []int64) error
 	Update(ctx context.Context, movie *models.Movie, genreIDs []int64, expectedUpdatedAt time.Time) error
@@ -44,6 +45,15 @@ func (r *movieRepository) List(ctx context.Context, search string, offset, limit
 		return nil, 0, err
 	}
 	return movies, total, nil
+}
+
+func (r *movieRepository) ListAvailable(ctx context.Context) ([]models.Movie, error) {
+	var movies []models.Movie
+	err := r.db.WithContext(ctx).Where("status <> ?", models.MovieStatusEnded).Order("title, id").Find(&movies).Error
+	if err != nil {
+		return nil, err
+	}
+	return movies, nil
 }
 
 func (r *movieRepository) FindByID(ctx context.Context, id int64) (*models.Movie, error) {

@@ -16,6 +16,7 @@ func RegisterRoutes(
 	adminTheaterService services.AdminTheaterService,
 	adminRoomService services.AdminRoomService,
 	adminSeatService services.AdminSeatService,
+	adminShowtimeService services.AdminShowtimeService,
 	adminCookie middleware.AdminSessionCookie,
 	adminSession echo.MiddlewareFunc,
 ) {
@@ -31,6 +32,7 @@ func RegisterRoutes(
 		admin.NewTheaterHandler(adminTheaterService, adminCookie.Secure),
 		admin.NewRoomHandler(adminRoomService, adminCookie.Secure),
 		admin.NewSeatHandler(adminSeatService, adminCookie.Secure),
+		admin.NewShowtimeHandler(adminShowtimeService, adminCookie.Secure),
 		adminSession,
 	)
 }
@@ -47,6 +49,7 @@ func registerAdminRoutes(
 	theaters *admin.TheaterHandler,
 	rooms *admin.RoomHandler,
 	seats *admin.SeatHandler,
+	showtimes *admin.ShowtimeHandler,
 	adminSession echo.MiddlewareFunc,
 ) {
 	g.GET("/login", auth.LoginPage)
@@ -77,4 +80,11 @@ func registerAdminRoutes(
 	protected.POST("/rooms/:id/seats/generate", seats.Generate)
 	protected.POST("/rooms/:id/seats/types", seats.ChangeRowTypes)
 	protected.POST("/rooms/:id/seats/:seatId/status", seats.ChangeStatus)
+	protected.GET("/showtimes", showtimes.List)
+	protected.GET("/showtimes/new", showtimes.New)
+	protected.POST("/showtimes", showtimes.Create)
+	protected.GET("/showtimes/:id/edit", showtimes.Edit)
+	protected.POST("/showtimes/:id", showtimes.Update)
+	protected.POST("/showtimes/:id/cancel", showtimes.Cancel)
+	protected.POST("/showtimes/:id/publish", showtimes.ChangePublished)
 }

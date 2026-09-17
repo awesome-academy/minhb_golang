@@ -1,0 +1,104 @@
+{{define "userbar"}}{{template "admin-nav" .}}{{end}}
+{{define "scripts"}}<script src="/static/showtime-form.js" defer></script>{{end}}
+
+{{define "content"}}
+<div class="form-card mx-auto">
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb small mb-2">
+      <li class="breadcrumb-item"><a class="text-decoration-none" href="{{.BackURL}}">Showtimes</a></li>
+      <li class="breadcrumb-item active" aria-current="page">{{.Title}}</li>
+    </ol>
+  </nav>
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h1 class="h4 mb-0">{{.Title}}</h1>
+    <a class="text-decoration-none small" href="{{.BackURL}}">Back to showtimes</a>
+  </div>
+  {{with .Error}}<div class="alert alert-danger py-2">{{.}}</div>{{end}}
+  {{if .Locked}}<div class="alert alert-warning py-2">This showtime has bookings. Movie, room and time are locked; you can still change the format and prices.</div>{{end}}
+  <form method="post" action="{{.Action}}" novalidate class="card card-body">
+    <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+    <input type="hidden" name="back" value="{{.Back}}">
+    {{if .IsEdit}}<input type="hidden" name="updated_at" value="{{.Form.UpdatedAt}}">{{end}}
+
+    <div class="mb-3">
+      <label for="movie_id" class="form-label">Movie *</label>
+      <select class="form-select{{if index .Errors "movie_id"}} is-invalid{{end}}" id="movie_id" name="movie_id" {{if .Locked}}disabled{{end}}>
+        <option value="">Select a movie</option>
+        {{range .Movies}}<option value="{{.ID}}" data-duration="{{.DurationMin}}" {{if eq .ID $.Form.MovieID}}selected{{end}}>{{.Title}} ({{.DurationMin}} min)</option>{{end}}
+      </select>
+      {{if .Locked}}<input type="hidden" name="movie_id" value="{{.Form.MovieID}}">{{end}}
+      {{with index .Errors "movie_id"}}<div class="invalid-feedback">{{.}}</div>{{end}}
+    </div>
+
+    <div class="mb-3">
+      <label for="room_id" class="form-label">Room *</label>
+      <select class="form-select{{if index .Errors "room_id"}} is-invalid{{end}}" id="room_id" name="room_id" {{if .Locked}}disabled{{end}}>
+        <option value="">Select a room</option>
+        {{range .RoomGroups}}
+        <optgroup label="{{.Theater}}">
+          {{range .Rooms}}<option value="{{.ID}}" {{if eq .ID $.Form.RoomID}}selected{{end}}>{{.Name}}</option>{{end}}
+        </optgroup>
+        {{end}}
+      </select>
+      {{if .Locked}}<input type="hidden" name="room_id" value="{{.Form.RoomID}}">{{end}}
+      {{with index .Errors "room_id"}}<div class="invalid-feedback">{{.}}</div>{{end}}
+    </div>
+
+    <div class="row g-3 mb-3">
+      <div class="col-md-6">
+        <label for="starts_at" class="form-label">Starts at *</label>
+        <input class="form-control{{if index .Errors "starts_at"}} is-invalid{{end}}" id="starts_at" name="starts_at" type="datetime-local" value="{{.Form.StartsAt}}" {{if .Locked}}readonly{{end}} required>
+        {{with index .Errors "starts_at"}}<div class="invalid-feedback">{{.}}</div>{{end}}
+      </div>
+      <div class="col-md-6">
+        <label for="ends_at" class="form-label">Ends at *</label>
+        <input class="form-control{{if index .Errors "ends_at"}} is-invalid{{end}}" id="ends_at" name="ends_at" type="datetime-local" value="{{.Form.EndsAt}}" {{if .Locked}}readonly{{end}} required>
+        {{with index .Errors "ends_at"}}<div class="invalid-feedback">{{.}}</div>{{end}}
+        <div class="form-text" id="movie-ends-hint">{{with .MovieEndsAt}}Movie ends at {{.}}{{end}}</div>
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label for="format" class="form-label">Format *</label>
+      <select class="form-select{{if index .Errors "format"}} is-invalid{{end}}" id="format" name="format">
+        {{range .Formats}}<option value="{{.}}" {{if eq . $.Form.Format}}selected{{end}}>{{.}}</option>{{end}}
+      </select>
+      {{with index .Errors "format"}}<div class="invalid-feedback">{{.}}</div>{{end}}
+    </div>
+
+    <div class="mb-4">
+      <label class="form-label d-block">Prices (USD) *</label>
+      <table class="table table-sm align-middle mb-0">
+        <tbody>
+          {{range .Prices}}
+          <tr>
+            <td class="w-50">
+              {{.Name}}
+              <input type="hidden" name="seat_type_id" value="{{.SeatTypeID}}">
+            </td>
+            <td>
+              <input class="form-control form-control-sm{{if .Error}} is-invalid{{end}}" name="price" type="text" inputmode="decimal" value="{{.Value}}" aria-label="Price for {{.Name}}">
+              {{with .Error}}<div class="invalid-feedback">{{.}}</div>{{end}}
+            </td>
+          </tr>
+          {{end}}
+        </tbody>
+      </table>
+    </div>
+
+    {{if .IsEdit}}
+    <div class="form-check mb-4">
+      <input class="form-check-input" type="checkbox" id="is_published" name="is_published" value="true" {{if .Form.IsPublished}}checked{{end}} {{if .PublishLocked}}disabled{{end}}>
+      <label class="form-check-label" for="is_published">Published</label>
+      {{if .PublishLocked}}<input type="hidden" name="is_published" value="true">
+      <div class="form-text">This showtime has bookings and cannot be unpublished.</div>{{end}}
+    </div>
+    {{end}}
+
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-dark">{{.Submit}}</button>
+      <a class="btn btn-outline-secondary" href="{{.BackURL}}">Cancel</a>
+    </div>
+  </form>
+</div>
+{{end}}

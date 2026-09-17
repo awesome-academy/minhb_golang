@@ -97,6 +97,7 @@ func run() error {
 	roomRepository := repositories.NewRoomRepository(database)
 	seatRepository := repositories.NewSeatRepository(database)
 	seatTypeRepository := repositories.NewSeatTypeRepository(database)
+	showtimeRepository := repositories.NewShowtimeRepository(database)
 	adminSessionRepository := repositories.NewAdminSessionRepository(redisClient, cfg.AdminSessionTTL)
 
 	// Services
@@ -106,6 +107,7 @@ func run() error {
 	adminTheaterService := services.NewAdminTheaterService(theaterRepository)
 	adminRoomService := services.NewAdminRoomService(theaterRepository, roomRepository, seatRepository)
 	adminSeatService := services.NewAdminSeatService(roomRepository, seatRepository, seatTypeRepository)
+	adminShowtimeService := services.NewAdminShowtimeService(theaterRepository, roomRepository, seatRepository, seatTypeRepository, movieRepository, showtimeRepository)
 
 	// Middleware
 	adminCookie := appmw.AdminSessionCookie{Secure: cfg.AdminCookieSecure, TTL: cfg.AdminSessionTTL}
@@ -120,6 +122,7 @@ func run() error {
 		adminTheaterService,
 		adminRoomService,
 		adminSeatService,
+		adminShowtimeService,
 		adminCookie,
 		adminSession,
 	)
