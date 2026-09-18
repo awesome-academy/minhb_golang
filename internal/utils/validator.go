@@ -119,6 +119,8 @@ func validationMessage(field string, fe validator.FieldError) string {
 		return field + " must be in the past"
 	case "oneof":
 		return field + " must be one of: " + fe.Param()
+	case "unique":
+		return field + " must not contain duplicates"
 	case "gt", "gte", "lt", "lte":
 		return field + " must be " + fe.Tag() + " " + fe.Param()
 	default:

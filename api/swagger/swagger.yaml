@@ -7,6 +7,35 @@ components:
         user:
           $ref: '#/components/schemas/dto.UserResponse'
       type: object
+    dto.BookingResponse:
+      properties:
+        code:
+          example: BK7F3K9Q
+          type: string
+        expiresAt:
+          example: "2026-09-19T11:30:00Z"
+          type: string
+        id:
+          example: 1
+          type: integer
+        tickets:
+          items:
+            $ref: '#/components/schemas/dto.BookingTicketResponse'
+          type: array
+          uniqueItems: false
+        total:
+          example: "150000.00"
+          type: string
+      type: object
+    dto.BookingTicketResponse:
+      properties:
+        price:
+          example: "75000.00"
+          type: string
+        seatId:
+          example: 12
+          type: integer
+      type: object
     dto.CastMemberResponse:
       properties:
         name:
@@ -15,6 +44,22 @@ components:
         role:
           example: Cobb
           type: string
+      type: object
+    dto.CreateBookingRequest:
+      properties:
+        seatIds:
+          items:
+            type: integer
+          maxItems: 8
+          minItems: 1
+          type: array
+          uniqueItems: true
+        showtimeId:
+          example: 1
+          type: integer
+      required:
+      - seatIds
+      - showtimeId
       type: object
     dto.GenreResponse:
       properties:
@@ -578,6 +623,67 @@ paths:
       summary: Register a new user
       tags:
       - auth
+  /bookings:
+    post:
+      description: Holds 1–8 seats of one published showtime for the current user
+        and returns the booking code to pay at the counter. Seats stay held until
+        `expiresAt` (30 minutes before the showtime starts); unpaid bookings expire
+        automatically and their seats are released. One pending booking per user per
+        showtime. Booking closes 30 minutes before the showtime starts. Prices come
+        from the showtime's price table, never from the request.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/dto.CreateBookingRequest'
+        description: Showtime and seat ids (1–8, unique)
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/dto.BookingResponse'
+          description: Created
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/utils.ValidationError'
+          description: validation failed; or booking closed (the showtime starts in
+            30 minutes or less); or a seat is not bookable (wrong room, disabled,
+            unpriced, unknown) — the last two return {errorCode, errorMessage} without
+            `errors`
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/utils.APIErrorResponse'
+          description: Unauthorized
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/utils.APIErrorResponse'
+          description: showtime not found, not published, cancelled or already started
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/utils.APIErrorResponse'
+          description: a seat was just taken by someone else, or you already have
+            a pending booking for this showtime
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/utils.APIErrorResponse'
+          description: Internal Server Error
+      security:
+      - bearerauth: []
+      summary: Create a booking
+      tags:
+      - bookings
   /health:
     get:
       description: Returns 200 when the API can reach PostgreSQL, 503 otherwise.

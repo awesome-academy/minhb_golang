@@ -98,6 +98,7 @@ func run() error {
 	seatTypeRepository := repositories.NewSeatTypeRepository(database)
 	showtimeRepository := repositories.NewShowtimeRepository(database)
 	ticketRepository := repositories.NewTicketRepository(database)
+	bookingRepository := repositories.NewBookingRepository(database)
 	adminSessionRepository := repositories.NewAdminSessionRepository(redisClient, cfg.AdminSessionTTL)
 	userTokenRepository := repositories.NewUserTokenRepository(redisClient)
 
@@ -108,6 +109,7 @@ func run() error {
 	userMovieService := services.NewUserMovieService(movieRepository)
 	userTheaterService := services.NewUserTheaterService(theaterRepository)
 	userShowtimeService := services.NewUserShowtimeService(movieRepository, theaterRepository, showtimeRepository, seatRepository, ticketRepository)
+	userBookingService := services.NewUserBookingService(bookingRepository)
 	adminAuthService := services.NewAdminAuthService(userRepository, adminSessionRepository)
 	adminMovieService := services.NewAdminMovieService(movieRepository, genreRepository)
 	adminTheaterService := services.NewAdminTheaterService(theaterRepository)
@@ -128,6 +130,7 @@ func run() error {
 		userMovieService,
 		userTheaterService,
 		userShowtimeService,
+		userBookingService,
 		adminAuthService,
 		adminMovieService,
 		adminTheaterService,

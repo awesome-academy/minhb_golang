@@ -16,6 +16,7 @@ func RegisterRoutes(
 	userMovieService services.UserMovieService,
 	userTheaterService services.UserTheaterService,
 	userShowtimeService services.UserShowtimeService,
+	userBookingService services.UserBookingService,
 	adminAuthService services.AdminAuthService,
 	adminMovieService services.AdminMovieService,
 	adminTheaterService services.AdminTheaterService,
@@ -34,6 +35,7 @@ func RegisterRoutes(
 		user.NewMovieHandler(userMovieService),
 		user.NewTheaterHandler(userTheaterService),
 		user.NewShowtimeHandler(userShowtimeService),
+		user.NewBookingHandler(userBookingService),
 		userAuth,
 	)
 
@@ -61,6 +63,7 @@ func registerUserRoutes(
 	movies *user.MovieHandler,
 	theaters *user.TheaterHandler,
 	showtimes *user.ShowtimeHandler,
+	bookings *user.BookingHandler,
 	userAuth echo.MiddlewareFunc,
 ) {
 	api.GET("/movies", movies.List)
@@ -70,6 +73,7 @@ func registerUserRoutes(
 	api.GET("/theaters/:id", theaters.Detail)
 	api.GET("/theaters/:id/showtimes", showtimes.ByTheater)
 	api.GET("/showtimes/:id/seats", showtimes.SeatMap)
+	api.POST("/bookings", bookings.Create, userAuth)
 
 	g := api.Group("/auth")
 	g.POST("/register", auth.Register)
