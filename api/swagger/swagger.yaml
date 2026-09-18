@@ -124,6 +124,56 @@ components:
           example: 57
           type: integer
       type: object
+    dto.MovieSchedule:
+      properties:
+        ageRating:
+          example: T13
+          type: string
+        durationMin:
+          example: 148
+          type: integer
+        genres:
+          items:
+            $ref: '#/components/schemas/dto.GenreResponse'
+          type: array
+          uniqueItems: false
+        id:
+          example: 1
+          type: integer
+        posterUrl:
+          example: https://cdn.example.com/posters/inception.jpg
+          type: string
+        releaseDate:
+          example: "2026-10-01"
+          type: string
+        showtimes:
+          items:
+            $ref: '#/components/schemas/dto.ShowtimeSummary'
+          type: array
+          uniqueItems: false
+        slug:
+          example: inception-1a2b3c4d
+          type: string
+        status:
+          example: now_showing
+          type: string
+        title:
+          example: Inception
+          type: string
+      type: object
+    dto.MovieScheduleResponse:
+      properties:
+        date:
+          example: "2026-09-19"
+          type: string
+        movie:
+          $ref: '#/components/schemas/dto.MovieSummary'
+        theaters:
+          items:
+            $ref: '#/components/schemas/dto.TheaterSchedule'
+          type: array
+          uniqueItems: false
+      type: object
     dto.MovieSummary:
       properties:
         ageRating:
@@ -186,6 +236,192 @@ components:
       - email
       - fullName
       - password
+      type: object
+    dto.RoomResponse:
+      properties:
+        id:
+          example: 1
+          type: integer
+        name:
+          example: Room 1
+          type: string
+      type: object
+    dto.SeatMapResponse:
+      properties:
+        prices:
+          items:
+            $ref: '#/components/schemas/dto.SeatPrice'
+          type: array
+          uniqueItems: false
+        seats:
+          items:
+            $ref: '#/components/schemas/dto.SeatResponse'
+          type: array
+          uniqueItems: false
+        showtime:
+          $ref: '#/components/schemas/dto.ShowtimeDetail'
+      type: object
+    dto.SeatPrice:
+      properties:
+        code:
+          example: standard
+          type: string
+        name:
+          example: Standard
+          type: string
+        price:
+          example: "75000.00"
+          type: string
+        seatTypeId:
+          example: 1
+          type: integer
+      type: object
+    dto.SeatResponse:
+      properties:
+        id:
+          example: 1
+          type: integer
+        number:
+          example: 1
+          type: integer
+        price:
+          example: "95000.00"
+          type: string
+        row:
+          example: A
+          type: string
+        seatType:
+          example: vip
+          type: string
+        status:
+          enum:
+          - available
+          - held
+          - sold
+          - blocked
+          example: available
+          type: string
+      type: object
+    dto.ShowtimeDetail:
+      properties:
+        endsAt:
+          example: "2026-09-19T14:30:00Z"
+          type: string
+        format:
+          example: 2D
+          type: string
+        id:
+          example: 1
+          type: integer
+        movie:
+          $ref: '#/components/schemas/dto.MovieSummary'
+        room:
+          $ref: '#/components/schemas/dto.RoomResponse'
+        startsAt:
+          example: "2026-09-19T12:00:00Z"
+          type: string
+        theater:
+          $ref: '#/components/schemas/dto.TheaterResponse'
+      type: object
+    dto.ShowtimeSummary:
+      properties:
+        endsAt:
+          example: "2026-09-19T14:30:00Z"
+          type: string
+        format:
+          example: 2D
+          type: string
+        id:
+          example: 1
+          type: integer
+        priceFrom:
+          example: "75000.00"
+          type: string
+        room:
+          $ref: '#/components/schemas/dto.RoomResponse'
+        startsAt:
+          example: "2026-09-19T12:00:00Z"
+          type: string
+      type: object
+    dto.TheaterListResponse:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/dto.TheaterResponse'
+          type: array
+          uniqueItems: false
+      type: object
+    dto.TheaterResponse:
+      properties:
+        address:
+          example: 72 Le Thanh Ton, District 1
+          type: string
+        city:
+          example: Ho Chi Minh
+          type: string
+        description:
+          example: Multiplex with 8 screens in the city centre.
+          type: string
+        id:
+          example: 1
+          type: integer
+        imageUrl:
+          example: https://cdn.example.com/theaters/cgv-vincom.jpg
+          type: string
+        name:
+          example: CGV Vincom Center
+          type: string
+        phone:
+          example: +84 28 3823 0123
+          type: string
+        slug:
+          example: cgv-vincom-center-1a2b3c4d
+          type: string
+      type: object
+    dto.TheaterSchedule:
+      properties:
+        address:
+          example: 72 Le Thanh Ton, District 1
+          type: string
+        city:
+          example: Ho Chi Minh
+          type: string
+        description:
+          example: Multiplex with 8 screens in the city centre.
+          type: string
+        id:
+          example: 1
+          type: integer
+        imageUrl:
+          example: https://cdn.example.com/theaters/cgv-vincom.jpg
+          type: string
+        name:
+          example: CGV Vincom Center
+          type: string
+        phone:
+          example: +84 28 3823 0123
+          type: string
+        showtimes:
+          items:
+            $ref: '#/components/schemas/dto.ShowtimeSummary'
+          type: array
+          uniqueItems: false
+        slug:
+          example: cgv-vincom-center-1a2b3c4d
+          type: string
+      type: object
+    dto.TheaterScheduleResponse:
+      properties:
+        date:
+          example: "2026-09-19"
+          type: string
+        movies:
+          items:
+            $ref: '#/components/schemas/dto.MovieSchedule'
+          type: array
+          uniqueItems: false
+        theater:
+          $ref: '#/components/schemas/dto.TheaterResponse'
       type: object
     dto.TokenResponse:
       properties:
@@ -500,5 +736,203 @@ paths:
       summary: Get a movie
       tags:
       - movies
+  /movies/{id}/showtimes:
+    get:
+      description: Returns the published, scheduled, not-yet-started showtimes of
+        one movie on one calendar day (Asia/Ho_Chi_Minh), grouped by theater. Times
+        are UTC (RFC 3339, `Z`); `priceFrom` is the lowest seat price. Deleted or
+        unknown movies are 404; a day without showtimes returns an empty `theaters`
+        list.
+      parameters:
+      - description: Movie ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+      - description: Day in YYYY-MM-DD (Asia/Ho_Chi_Minh), default today
+        example: "2026-09-19"
+        in: query
+        name: date
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/dto.MovieScheduleResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/utils.ValidationError'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/utils.APIErrorResponse'
+          description: movie not found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/utils.APIErrorResponse'
+          description: Internal Server Error
+      summary: Showtimes of a movie on a day
+      tags:
+      - showtimes
+  /showtimes/{id}/seats:
+    get:
+      description: 'Returns every seat of the room with its status: `available`, `held`
+        (active hold), `sold` (paid) or `blocked` (seat disabled or its seat type
+        has no price for this showtime, `price` is then null). Only published, scheduled,
+        not-yet-started showtimes in active rooms and theaters are visible; anything
+        else is 404.'
+      parameters:
+      - description: Showtime ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/dto.SeatMapResponse'
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/utils.APIErrorResponse'
+          description: showtime not found, not published, cancelled or already started
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/utils.APIErrorResponse'
+          description: Internal Server Error
+      summary: Seat map of a showtime
+      tags:
+      - showtimes
+  /theaters:
+    get:
+      description: Returns every active theater ordered by city then name. Inactive
+        or deleted theaters are never listed. No paging.
+      parameters:
+      - description: Filter by city (case-insensitive exact match)
+        in: query
+        name: city
+        schema:
+          maxLength: 100
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/dto.TheaterListResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/utils.ValidationError'
+          description: Bad Request
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/utils.APIErrorResponse'
+          description: Internal Server Error
+      summary: List theaters
+      tags:
+      - theaters
+  /theaters/{id}:
+    get:
+      description: Returns one active theater. Inactive, deleted or unknown ids are
+        404.
+      parameters:
+      - description: Theater ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/dto.TheaterResponse'
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/utils.APIErrorResponse'
+          description: theater not found or inactive
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/utils.APIErrorResponse'
+          description: Internal Server Error
+      summary: Get a theater
+      tags:
+      - theaters
+  /theaters/{id}/showtimes:
+    get:
+      description: Returns the published, scheduled, not-yet-started showtimes of
+        one active theater on one calendar day (Asia/Ho_Chi_Minh), grouped by movie.
+        Times are UTC (RFC 3339, `Z`); `priceFrom` is the lowest seat price. Inactive
+        or unknown theaters are 404; a day without showtimes returns an empty `movies`
+        list.
+      parameters:
+      - description: Theater ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+      - description: Day in YYYY-MM-DD (Asia/Ho_Chi_Minh), default today
+        example: "2026-09-19"
+        in: query
+        name: date
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/dto.TheaterScheduleResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/utils.ValidationError'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/utils.APIErrorResponse'
+          description: theater not found or inactive
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/utils.APIErrorResponse'
+          description: Internal Server Error
+      summary: Showtimes of a theater on a day
+      tags:
+      - showtimes
 servers:
 - url: /api
