@@ -11,8 +11,14 @@ import (
 	"cinema-booking/internal/models"
 )
 
+type MovieFilter struct {
+	Status models.MovieStatus
+	Search string
+}
+
 type MovieRepository interface {
 	List(ctx context.Context, search string, offset, limit int) ([]models.Movie, int64, error)
+	ListPublic(ctx context.Context, filter MovieFilter, offset, limit int) ([]models.Movie, int64, error)
 	ListAvailable(ctx context.Context) ([]models.Movie, error)
 	FindByID(ctx context.Context, id int64) (*models.Movie, error)
 	Create(ctx context.Context, movie *models.Movie, genreIDs []int64) error
@@ -45,6 +51,42 @@ func (r *movieRepository) List(ctx context.Context, search string, offset, limit
 		return nil, 0, err
 	}
 	return movies, total, nil
+}
+
+func (r *movieRepository) ListPublic(ctx context.Context, filter MovieFilter, offset, limit int) ([]models.Movie, int64, error) {
+	base := r.db.WithContext(ctx).Model(&models.Movie{}).Where("status <> ?", models.MovieStatusEnded)
+	if filter.Status != "" {
+		base = base.Where("status = ?", filter.Status)
+	}
+	if filter.Search != "" {
+		base = base.Where("(title ILIKE ? OR ? <% title)", likePattern(filter.Search), filter.Search)
+	}
+	base = base.Session(&gorm.Session{})
+
+	var total int64
+	if err := base.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	var movies []models.Movie
+	err := base.Preload("Genres").Order(publicMovieOrder(filter)).Offset(offset).Limit(limit).Find(&movies).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	return movies, total, nil
+}
+
+func publicMovieOrder(filter MovieFilter) any {
+	switch {
+	case filter.Search != "":
+		return clause.OrderBy{Expression: clause.Expr{
+			SQL:  "word_similarity(?, title) DESC, release_date DESC, id DESC",
+			Vars: []any{filter.Search},
+		}}
+	case filter.Status == models.MovieStatusComingSoon:
+		return "release_date ASC, id ASC"
+	default:
+		return "release_date DESC, id DESC"
+	}
 }
 
 func (r *movieRepository) ListAvailable(ctx context.Context) ([]models.Movie, error) {

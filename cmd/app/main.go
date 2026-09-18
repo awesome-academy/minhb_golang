@@ -104,6 +104,7 @@ func run() error {
 	tokenManager := userauth.NewTokenManager(cfg.JWTSecret, cfg.JWTAccessTTL)
 	healthService := services.NewHealthService(healthRepository)
 	userAuthService := services.NewUserAuthService(userRepository, userTokenRepository, tokenManager)
+	userMovieService := services.NewUserMovieService(movieRepository)
 	adminAuthService := services.NewAdminAuthService(userRepository, adminSessionRepository)
 	adminMovieService := services.NewAdminMovieService(movieRepository, genreRepository)
 	adminTheaterService := services.NewAdminTheaterService(theaterRepository)
@@ -121,6 +122,7 @@ func run() error {
 		e,
 		healthService,
 		userAuthService,
+		userMovieService,
 		adminAuthService,
 		adminMovieService,
 		adminTheaterService,

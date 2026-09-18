@@ -7,6 +7,27 @@ components:
         user:
           $ref: '#/components/schemas/dto.UserResponse'
       type: object
+    dto.CastMemberResponse:
+      properties:
+        name:
+          example: Leonardo DiCaprio
+          type: string
+        role:
+          example: Cobb
+          type: string
+      type: object
+    dto.GenreResponse:
+      properties:
+        id:
+          example: 1
+          type: integer
+        name:
+          example: Action
+          type: string
+        slug:
+          example: action
+          type: string
+      type: object
     dto.HealthResponse:
       properties:
         status:
@@ -29,6 +50,110 @@ components:
       properties:
         message:
           example: ok
+          type: string
+      type: object
+    dto.MovieDetail:
+      properties:
+        ageRating:
+          example: T13
+          type: string
+        backdropUrl:
+          example: https://cdn.example.com/backdrops/inception.jpg
+          type: string
+        castMembers:
+          items:
+            $ref: '#/components/schemas/dto.CastMemberResponse'
+          type: array
+          uniqueItems: false
+        description:
+          example: A thief who steals corporate secrets through dream-sharing technology.
+          type: string
+        director:
+          example: Christopher Nolan
+          type: string
+        durationMin:
+          example: 148
+          type: integer
+        genres:
+          items:
+            $ref: '#/components/schemas/dto.GenreResponse'
+          type: array
+          uniqueItems: false
+        id:
+          example: 1
+          type: integer
+        language:
+          example: English
+          type: string
+        originalTitle:
+          example: Inception
+          type: string
+        posterUrl:
+          example: https://cdn.example.com/posters/inception.jpg
+          type: string
+        releaseDate:
+          example: "2026-10-01"
+          type: string
+        slug:
+          example: inception-1a2b3c4d
+          type: string
+        status:
+          example: now_showing
+          type: string
+        title:
+          example: Inception
+          type: string
+        trailerUrl:
+          example: https://www.youtube.com/watch?v=YoHD9XEInc0
+          type: string
+      type: object
+    dto.MovieListResponse:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/dto.MovieSummary'
+          type: array
+          uniqueItems: false
+        page:
+          example: 1
+          type: integer
+        pageSize:
+          example: 20
+          type: integer
+        total:
+          example: 57
+          type: integer
+      type: object
+    dto.MovieSummary:
+      properties:
+        ageRating:
+          example: T13
+          type: string
+        durationMin:
+          example: 148
+          type: integer
+        genres:
+          items:
+            $ref: '#/components/schemas/dto.GenreResponse'
+          type: array
+          uniqueItems: false
+        id:
+          example: 1
+          type: integer
+        posterUrl:
+          example: https://cdn.example.com/posters/inception.jpg
+          type: string
+        releaseDate:
+          example: "2026-10-01"
+          type: string
+        slug:
+          example: inception-1a2b3c4d
+          type: string
+        status:
+          example: now_showing
+          type: string
+        title:
+          example: Inception
           type: string
       type: object
     dto.RegisterRequest:
@@ -285,5 +410,95 @@ paths:
       summary: Health check
       tags:
       - system
+  /movies:
+    get:
+      description: Returns now-showing and coming-soon movies; `ended` movies are
+        never listed. Without `status` both groups are returned. Title search combines
+        substring matching with trigram word similarity, so a query of a few words
+        with a typo or without Vietnamese diacritics still matches and the closest
+        titles come first.
+      parameters:
+      - description: Filter by status
+        in: query
+        name: status
+        schema:
+          enum:
+          - now_showing
+          - coming_soon
+          type: string
+      - description: Search by title (1–100 characters)
+        in: query
+        name: q
+        schema:
+          type: string
+      - description: Page number, default 1
+        in: query
+        name: page
+        schema:
+          maximum: 100000
+          minimum: 1
+          type: integer
+      - description: Items per page, default 20
+        in: query
+        name: pageSize
+        schema:
+          maximum: 50
+          minimum: 1
+          type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/dto.MovieListResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/utils.ValidationError'
+          description: Bad Request
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/utils.APIErrorResponse'
+          description: Internal Server Error
+      summary: List movies
+      tags:
+      - movies
+  /movies/{id}:
+    get:
+      description: Returns one movie with its genres, cast members and trailer. Ended
+        movies are still returned; deleted or unknown ids are 404.
+      parameters:
+      - description: Movie ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/dto.MovieDetail'
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/utils.APIErrorResponse'
+          description: movie not found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/utils.APIErrorResponse'
+          description: Internal Server Error
+      summary: Get a movie
+      tags:
+      - movies
 servers:
 - url: /api
