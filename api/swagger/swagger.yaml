@@ -126,40 +126,13 @@ components:
       type: object
     dto.MovieSchedule:
       properties:
-        ageRating:
-          example: T13
-          type: string
-        durationMin:
-          example: 148
-          type: integer
-        genres:
-          items:
-            $ref: '#/components/schemas/dto.GenreResponse'
-          type: array
-          uniqueItems: false
-        id:
-          example: 1
-          type: integer
-        posterUrl:
-          example: https://cdn.example.com/posters/inception.jpg
-          type: string
-        releaseDate:
-          example: "2026-10-01"
-          type: string
+        movie:
+          $ref: '#/components/schemas/dto.MovieSummary'
         showtimes:
           items:
             $ref: '#/components/schemas/dto.ShowtimeSummary'
           type: array
           uniqueItems: false
-        slug:
-          example: inception-1a2b3c4d
-          type: string
-        status:
-          example: now_showing
-          type: string
-        title:
-          example: Inception
-          type: string
       type: object
     dto.MovieScheduleResponse:
       properties:
@@ -380,35 +353,13 @@ components:
       type: object
     dto.TheaterSchedule:
       properties:
-        address:
-          example: 72 Le Thanh Ton, District 1
-          type: string
-        city:
-          example: Ho Chi Minh
-          type: string
-        description:
-          example: Multiplex with 8 screens in the city centre.
-          type: string
-        id:
-          example: 1
-          type: integer
-        imageUrl:
-          example: https://cdn.example.com/theaters/cgv-vincom.jpg
-          type: string
-        name:
-          example: CGV Vincom Center
-          type: string
-        phone:
-          example: +84 28 3823 0123
-          type: string
         showtimes:
           items:
             $ref: '#/components/schemas/dto.ShowtimeSummary'
           type: array
           uniqueItems: false
-        slug:
-          example: cgv-vincom-center-1a2b3c4d
-          type: string
+        theater:
+          $ref: '#/components/schemas/dto.TheaterResponse'
       type: object
     dto.TheaterScheduleResponse:
       properties:

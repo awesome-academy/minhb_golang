@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"net/http"
 	"time"
 
 	"cinema-booking/internal/models"
@@ -86,10 +85,7 @@ func (s *userShowtimeService) SeatMap(ctx context.Context, id int64) (*ShowtimeS
 }
 
 func (s *userShowtimeService) schedule(ctx context.Context, filter repositories.PublicShowtimeFilter, date string) (*Schedule, error) {
-	day, err := scheduleDay(date)
-	if err != nil {
-		return nil, err
-	}
+	day := scheduleDay(date)
 	filter.From = day
 	filter.To = day.AddDate(0, 0, 1)
 	showtimes, err := s.showtimes.ListPublic(ctx, filter)
@@ -99,14 +95,11 @@ func (s *userShowtimeService) schedule(ctx context.Context, filter repositories.
 	return &Schedule{Date: day.Format(time.DateOnly), Showtimes: showtimes}, nil
 }
 
-func scheduleDay(date string) (time.Time, error) {
+func scheduleDay(date string) time.Time {
 	if date == "" {
 		now := time.Now().In(utils.Location)
-		return time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, utils.Location), nil
+		return time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, utils.Location)
 	}
-	day, err := time.ParseInLocation(time.DateOnly, date, utils.Location)
-	if err != nil {
-		return time.Time{}, utils.APIError(http.StatusBadRequest, "date must be a date in format YYYY-MM-DD")
-	}
-	return day, nil
+	day, _ := time.ParseInLocation(time.DateOnly, date, utils.Location)
+	return day
 }

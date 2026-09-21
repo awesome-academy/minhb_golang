@@ -26,7 +26,7 @@ type ShowtimeSummary struct {
 }
 
 type TheaterSchedule struct {
-	TheaterResponse
+	Theater   TheaterResponse   `json:"theater"`
 	Showtimes []ShowtimeSummary `json:"showtimes"`
 }
 
@@ -37,7 +37,7 @@ type MovieScheduleResponse struct {
 }
 
 type MovieSchedule struct {
-	MovieSummary
+	Movie     MovieSummary      `json:"movie"`
 	Showtimes []ShowtimeSummary `json:"showtimes"`
 }
 
@@ -68,17 +68,17 @@ func NewMovieScheduleResponse(movie *models.Movie, date string, showtimes []mode
 			pos = len(groups)
 			index[showtime.Room.TheaterID] = pos
 			groups = append(groups, TheaterSchedule{
-				TheaterResponse: NewTheaterResponse(&showtime.Room.Theater),
-				Showtimes:       make([]ShowtimeSummary, 0),
+				Theater:   NewTheaterResponse(&showtime.Room.Theater),
+				Showtimes: make([]ShowtimeSummary, 0),
 			})
 		}
 		groups[pos].Showtimes = append(groups[pos].Showtimes, NewShowtimeSummary(showtime))
 	}
 	sort.SliceStable(groups, func(i, j int) bool {
-		if groups[i].Name != groups[j].Name {
-			return groups[i].Name < groups[j].Name
+		if groups[i].Theater.Name != groups[j].Theater.Name {
+			return groups[i].Theater.Name < groups[j].Theater.Name
 		}
-		return groups[i].ID < groups[j].ID
+		return groups[i].Theater.ID < groups[j].Theater.ID
 	})
 	return MovieScheduleResponse{Movie: NewMovieSummary(movie), Date: date, Theaters: groups}
 }
@@ -93,17 +93,17 @@ func NewTheaterScheduleResponse(theater *models.Theater, date string, showtimes 
 			pos = len(groups)
 			index[showtime.MovieID] = pos
 			groups = append(groups, MovieSchedule{
-				MovieSummary: NewMovieSummary(&showtime.Movie),
-				Showtimes:    make([]ShowtimeSummary, 0),
+				Movie:     NewMovieSummary(&showtime.Movie),
+				Showtimes: make([]ShowtimeSummary, 0),
 			})
 		}
 		groups[pos].Showtimes = append(groups[pos].Showtimes, NewShowtimeSummary(showtime))
 	}
 	sort.SliceStable(groups, func(i, j int) bool {
-		if groups[i].Title != groups[j].Title {
-			return groups[i].Title < groups[j].Title
+		if groups[i].Movie.Title != groups[j].Movie.Title {
+			return groups[i].Movie.Title < groups[j].Movie.Title
 		}
-		return groups[i].ID < groups[j].ID
+		return groups[i].Movie.ID < groups[j].Movie.ID
 	})
 	return TheaterScheduleResponse{Theater: NewTheaterResponse(theater), Date: date, Movies: groups}
 }

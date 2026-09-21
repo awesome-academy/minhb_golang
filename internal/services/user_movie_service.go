@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"strings"
 
 	"cinema-booking/internal/dto"
 	"cinema-booking/internal/models"
@@ -32,7 +33,7 @@ func NewUserMovieService(movies repositories.MovieRepository) UserMovieService {
 
 func (s *userMovieService) List(ctx context.Context, query dto.MovieListQuery) (*MoviePage, error) {
 	page, pageSize := normalizePage(query.Page, query.PageSize, UserMoviePageSize)
-	filter := repositories.MovieFilter{Status: models.MovieStatus(query.Status), Search: query.Q}
+	filter := repositories.MovieFilter{Status: models.MovieStatus(query.Status), Search: strings.TrimSpace(query.Q)}
 	movies, total, err := s.movies.ListPublic(ctx, filter, (page-1)*pageSize, pageSize)
 	if err != nil {
 		return nil, err
