@@ -29,6 +29,8 @@ type Config struct {
 	JWTSecret    string
 	JWTAccessTTL time.Duration
 
+	HoldExpiryInterval time.Duration
+
 	LogLevel  string
 	LogFormat string
 }
@@ -62,21 +64,26 @@ func Load() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	holdExpiryInterval, err := getEnvDuration("HOLD_EXPIRY_INTERVAL", 60*time.Second)
+	if err != nil {
+		return nil, err
+	}
 	logFormat := getEnv("LOG_FORMAT", "text")
 	cfg := &Config{
-		HTTPAddr:          getEnv("HTTP_ADDR", ":8080"),
-		DatabaseURL:       os.Getenv("DATABASE_URL"),
-		RedisURL:          os.Getenv("REDIS_URL"),
-		DBMaxOpenConns:    maxOpen,
-		DBMaxIdleConns:    maxIdle,
-		DBLogSQL:          logSQL,
-		DBLogColorful:     strings.EqualFold(logFormat, "text"),
-		AdminSessionTTL:   sessionTTL,
-		AdminCookieSecure: cookieSecure,
-		JWTSecret:         os.Getenv("JWT_SECRET"),
-		JWTAccessTTL:      jwtAccessTTL,
-		LogLevel:          getEnv("LOG_LEVEL", "info"),
-		LogFormat:         logFormat,
+		HTTPAddr:           getEnv("HTTP_ADDR", ":8080"),
+		DatabaseURL:        os.Getenv("DATABASE_URL"),
+		RedisURL:           os.Getenv("REDIS_URL"),
+		DBMaxOpenConns:     maxOpen,
+		DBMaxIdleConns:     maxIdle,
+		DBLogSQL:           logSQL,
+		DBLogColorful:      strings.EqualFold(logFormat, "text"),
+		AdminSessionTTL:    sessionTTL,
+		AdminCookieSecure:  cookieSecure,
+		JWTSecret:          os.Getenv("JWT_SECRET"),
+		JWTAccessTTL:       jwtAccessTTL,
+		HoldExpiryInterval: holdExpiryInterval,
+		LogLevel:           getEnv("LOG_LEVEL", "info"),
+		LogFormat:          logFormat,
 	}
 	if cfg.DatabaseURL == "" {
 		return nil, errors.New("DATABASE_URL is required")

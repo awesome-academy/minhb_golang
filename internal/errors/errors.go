@@ -27,6 +27,10 @@ var (
 	ErrShowtimeNotEditable  = errors.New("showtime can no longer be edited")
 	ErrShowtimeLocked       = errors.New("showtime has bookings, movie/room/time are locked")
 	ErrShowtimeHasBookings  = errors.New("showtime has bookings")
+	ErrBookingTooLate       = errors.New("bookings close 30 minutes before the showtime starts")
+	ErrSeatsInvalid         = errors.New("one or more seats are not available for this showtime")
+	ErrSeatsTaken           = errors.New("one or more seats have just been taken")
+	ErrBookingPendingExists = errors.New("you already have a pending booking for this showtime")
 )
 
 type FieldErrors map[string]string

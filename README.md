@@ -12,7 +12,8 @@ Backend web đặt vé rạp chiếu phim viết bằng Go, Echo v5, GORM v2 và
 ```text
 cmd/
 ├── app/                 # HTTP entry point
-└── migrate/             # CLI chạy migration up/down
+├── migrate/             # CLI chạy migration up/down
+└── worker/              # Job nền: hết hạn hold booking (chạy riêng process)
 config/                  # Load .env / biến môi trường
 api/swagger/             # Swagger spec sinh tự động — không sửa tay
 migrations/              # gormigrate, mỗi migration là raw SQL trong file Go (7 migration: extension, enum, 12 bảng)
@@ -44,6 +45,7 @@ cp .env.example .env                                # mặc định khớp docke
 docker compose up -d cinema-postgres cinema-redis   # PostgreSQL 15 tại :5434, Redis 7 tại :6380
 go run ./cmd/migrate -direction=up                  # tạo extension, enum và 12 bảng theo thiết kế
 go run ./cmd/app                                    # API tại http://localhost:8080
+go run ./cmd/worker                                 # job hết hạn hold, chạy song song với API (terminal khác)
 ```
 
 Kiểm tra: `curl localhost:8080/api/health` → `{"status":"ok"}`; Swagger UI: http://localhost:8080/swaggers; trang admin: http://localhost:8080/admin/login.
@@ -68,6 +70,7 @@ SQL
 | Mục đích | Lệnh |
 | --- | --- |
 | Chạy API | `go run ./cmd/app` |
+| Chạy worker (cron hết hạn hold) | `go run ./cmd/worker` |
 | Migration up / down | `go run ./cmd/migrate -direction=up` / `-direction=down` |
 | Build toàn bộ | `go build ./...` |
 | Kiểm tra tĩnh | `go vet ./...` |
@@ -92,6 +95,7 @@ SQL
 | `ADMIN_COOKIE_SECURE` | `false` | `true` khi admin chạy qua HTTPS; dev HTTP phải để `false` (cookie `Secure` không gửi qua HTTP) |
 | `JWT_SECRET` | bắt buộc | Khóa ký HS256 cho JWT user API, tối thiểu 32 ký tự; thiếu hoặc ngắn hơn → app dừng ngay |
 | `JWT_ACCESS_TTL` | `2h` | Go duration > 0; thời gian sống access token; hết hạn thì client đăng nhập lại |
+| `HOLD_EXPIRY_INTERVAL` | `60s` | Go duration > 0; chu kỳ `cmd/worker` chuyển booking `pending` quá `expires_at` → `expired` và vé → `released` (chạy 1 lần lúc khởi động rồi mỗi chu kỳ; `cmd/app` không đọc biến này) |
 | `POSTGRES_*` | `cinema` / `5434` | Chỉ dùng bởi Docker Compose |
 | `REDIS_PORT` | `6380` | Chỉ dùng bởi Docker Compose (host port của `cinema-redis`) |
 

@@ -33,6 +33,7 @@ func New(db *gorm.DB) *gormigrate.Gormigrate {
 			migrationCreateBookingsAndTickets(),
 			migrationAddShowtimesIsPublished(),
 			migrationAddBookingStatusCancelled(),
+			migrationAddBookingsOnePendingPerUserShowtime(),
 		},
 	)
 }
