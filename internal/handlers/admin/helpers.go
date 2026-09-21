@@ -47,11 +47,7 @@ func parseID(c *echo.Context) (int64, error) {
 }
 
 func parseParamID(c *echo.Context, name string) (int64, error) {
-	id, err := strconv.ParseInt(c.Param(name), 10, 64)
-	if err != nil || id <= 0 {
-		return 0, utils.APIError(http.StatusNotFound, "resource not found")
-	}
-	return id, nil
+	return utils.ParamID(c, name)
 }
 
 func parsePage(raw string) int {

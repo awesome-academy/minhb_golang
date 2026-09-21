@@ -19,9 +19,18 @@ type ShowtimeFilter struct {
 	Published *bool
 }
 
+type PublicShowtimeFilter struct {
+	MovieID   int64
+	TheaterID int64
+	From      time.Time
+	To        time.Time
+}
+
 type ShowtimeRepository interface {
 	List(ctx context.Context, filter ShowtimeFilter, offset, limit int) ([]models.Showtime, int64, error)
+	ListPublic(ctx context.Context, filter PublicShowtimeFilter) ([]models.Showtime, error)
 	FindByID(ctx context.Context, id int64) (*models.Showtime, error)
+	FindPublic(ctx context.Context, id int64) (*models.Showtime, error)
 	LatestInTheater(ctx context.Context, theaterID int64) (*models.Showtime, error)
 	HasActiveBookings(ctx context.Context, id int64) (bool, error)
 	ActiveBookingCounts(ctx context.Context, ids []int64) (map[int64]int64, error)
@@ -86,10 +95,39 @@ func (r *showtimeRepository) List(ctx context.Context, filter ShowtimeFilter, of
 	return showtimes, total, nil
 }
 
+func (r *showtimeRepository) ListPublic(ctx context.Context, filter PublicShowtimeFilter) ([]models.Showtime, error) {
+	query := publicShowtimes(r.db.WithContext(ctx)).Where("starts_at >= ? AND starts_at < ?", filter.From, filter.To)
+	if filter.MovieID > 0 {
+		query = query.Where("movie_id = ?", filter.MovieID)
+	}
+	if filter.TheaterID > 0 {
+		query = query.Where("room_id IN (SELECT id FROM rooms WHERE theater_id = ?)", filter.TheaterID)
+	}
+	var showtimes []models.Showtime
+	err := query.Preload("Movie.Genres").Preload("Room.Theater").Preload("Prices").
+		Order("starts_at, id").
+		Find(&showtimes).Error
+	if err != nil {
+		return nil, err
+	}
+	return showtimes, nil
+}
+
 func (r *showtimeRepository) FindByID(ctx context.Context, id int64) (*models.Showtime, error) {
 	var showtime models.Showtime
 	err := r.db.WithContext(ctx).
 		Preload("Movie", unscoped).Preload("Room.Theater").Preload("Prices").
+		First(&showtime, "id = ?", id).Error
+	if err != nil {
+		return nil, err
+	}
+	return &showtime, nil
+}
+
+func (r *showtimeRepository) FindPublic(ctx context.Context, id int64) (*models.Showtime, error) {
+	var showtime models.Showtime
+	err := publicShowtimes(r.db.WithContext(ctx)).
+		Preload("Movie.Genres").Preload("Room.Theater").Preload("Prices.SeatType").
 		First(&showtime, "id = ?", id).Error
 	if err != nil {
 		return nil, err
@@ -254,6 +292,13 @@ func unscoped(db *gorm.DB) *gorm.DB {
 	return db.Unscoped()
 }
 
+func publicShowtimes(db *gorm.DB) *gorm.DB {
+	return db.Where("status = ? AND is_published AND starts_at > now()", models.ShowtimeStatusScheduled).
+		Where("movie_id IN (SELECT id FROM movies WHERE deleted_at IS NULL)").
+		Where(`room_id IN (SELECT r.id FROM rooms r JOIN theaters t ON t.id = r.theater_id
+			WHERE r.is_active AND r.deleted_at IS NULL AND t.is_active AND t.deleted_at IS NULL)`)
+}
+
 func lockRoom(tx *gorm.DB, roomID int64) error {
 	return tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&models.Room{}, "id = ?", roomID).Error
 }
@@ -284,7 +329,7 @@ func releaseTickets(tx *gorm.DB, ids []int64) error {
 		return nil
 	}
 	return tx.Model(&models.Ticket{}).
-		Where("booking_id IN ? AND status IN ?", ids, []models.TicketStatus{models.TicketStatusHeld, models.TicketStatusPaid}).
+		Where("booking_id IN ? AND status IN ?", ids, activeTicketStatuses).
 		Update("status", models.TicketStatusReleased).Error
 }
 

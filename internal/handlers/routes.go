@@ -13,6 +13,9 @@ func RegisterRoutes(
 	e *echo.Echo,
 	healthService services.HealthService,
 	userAuthService services.UserAuthService,
+	userMovieService services.UserMovieService,
+	userTheaterService services.UserTheaterService,
+	userShowtimeService services.UserShowtimeService,
 	adminAuthService services.AdminAuthService,
 	adminMovieService services.AdminMovieService,
 	adminTheaterService services.AdminTheaterService,
@@ -25,7 +28,14 @@ func RegisterRoutes(
 ) {
 	api := e.Group("/api")
 	registerHealthRoutes(api, NewHealthHandler(healthService))
-	registerUserRoutes(api, user.NewAuthHandler(userAuthService), userAuth)
+	registerUserRoutes(
+		api,
+		user.NewAuthHandler(userAuthService),
+		user.NewMovieHandler(userMovieService),
+		user.NewTheaterHandler(userTheaterService),
+		user.NewShowtimeHandler(userShowtimeService),
+		userAuth,
+	)
 
 	adminGroup := e.Group(middleware.AdminPathPrefix)
 	registerAdminRoutes(
@@ -45,7 +55,22 @@ func registerHealthRoutes(api *echo.Group, handler *HealthHandler) {
 	api.GET("/health", handler.Check)
 }
 
-func registerUserRoutes(api *echo.Group, auth *user.AuthHandler, userAuth echo.MiddlewareFunc) {
+func registerUserRoutes(
+	api *echo.Group,
+	auth *user.AuthHandler,
+	movies *user.MovieHandler,
+	theaters *user.TheaterHandler,
+	showtimes *user.ShowtimeHandler,
+	userAuth echo.MiddlewareFunc,
+) {
+	api.GET("/movies", movies.List)
+	api.GET("/movies/:id", movies.Detail)
+	api.GET("/movies/:id/showtimes", showtimes.ByMovie)
+	api.GET("/theaters", theaters.List)
+	api.GET("/theaters/:id", theaters.Detail)
+	api.GET("/theaters/:id/showtimes", showtimes.ByTheater)
+	api.GET("/showtimes/:id/seats", showtimes.SeatMap)
+
 	g := api.Group("/auth")
 	g.POST("/register", auth.Register)
 	g.POST("/login", auth.Login)

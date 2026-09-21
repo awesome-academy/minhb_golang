@@ -14,7 +14,9 @@ import (
 type TheaterRepository interface {
 	List(ctx context.Context, search string, offset, limit int) ([]models.Theater, int64, error)
 	ListAll(ctx context.Context) ([]models.Theater, error)
+	ListPublic(ctx context.Context, city string) ([]models.Theater, error)
 	FindByID(ctx context.Context, id int64) (*models.Theater, error)
+	FindPublic(ctx context.Context, id int64) (*models.Theater, error)
 	Create(ctx context.Context, theater *models.Theater) error
 	Update(ctx context.Context, theater *models.Theater, expectedUpdatedAt time.Time) error
 	ChangeStatus(ctx context.Context, id int64) (bool, error)
@@ -56,6 +58,26 @@ func (r *theaterRepository) ListAll(ctx context.Context) ([]models.Theater, erro
 func (r *theaterRepository) FindByID(ctx context.Context, id int64) (*models.Theater, error) {
 	var theater models.Theater
 	if err := r.db.WithContext(ctx).First(&theater, "id = ?", id).Error; err != nil {
+		return nil, err
+	}
+	return &theater, nil
+}
+
+func (r *theaterRepository) ListPublic(ctx context.Context, city string) ([]models.Theater, error) {
+	query := r.db.WithContext(ctx).Where("is_active")
+	if city != "" {
+		query = query.Where("lower(city) = lower(?)", city)
+	}
+	var theaters []models.Theater
+	if err := query.Order("city, name, id").Find(&theaters).Error; err != nil {
+		return nil, err
+	}
+	return theaters, nil
+}
+
+func (r *theaterRepository) FindPublic(ctx context.Context, id int64) (*models.Theater, error) {
+	var theater models.Theater
+	if err := r.db.WithContext(ctx).First(&theater, "id = ? AND is_active", id).Error; err != nil {
 		return nil, err
 	}
 	return &theater, nil
