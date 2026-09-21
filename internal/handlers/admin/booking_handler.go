@@ -34,6 +34,7 @@ type CounterSeatView struct {
 	Status    string
 	Price     string
 	BookingID int64
+	PairID    int64
 	Title     string
 }
 
@@ -130,6 +131,8 @@ func (h *BookingHandler) Sell(c *echo.Context) error {
 		h.flash.set(c, flashDanger, "One or more seats are not available for this showtime")
 	case errors.Is(err, apperrors.ErrSeatsTaken):
 		h.flash.set(c, flashDanger, "One or more seats have just been taken")
+	case errors.Is(err, apperrors.ErrCoupleSeatsUnpaired):
+		h.flash.set(c, flashDanger, "Couple seats sell in pairs (1-2, 3-4, ...), select both seats")
 	case err != nil:
 		return utils.ServiceError(err)
 	default:
@@ -195,8 +198,28 @@ func buildCounterSeatMapView(data *services.CounterSeatMap, now time.Time) Count
 		}
 		view.addSeat(seat.RowLabel, counterSeatView(seat, label, prices[seat.SeatTypeID], booking))
 	}
+	view.linkCouplePairs()
 	view.Bookings = bookingViews(data.Bookings, seatsByBooking)
 	return view
+}
+
+func (v *CounterSeatMapView) linkCouplePairs() {
+	for r := range v.Rows {
+		seats := v.Rows[r].Seats
+		byNumber := make(map[int16]*CounterSeatView, len(seats))
+		for i := range seats {
+			byNumber[seats[i].Number] = &seats[i]
+		}
+		for i := range seats {
+			seat := &seats[i]
+			if seat.TypeCode != models.SeatTypeCodeCouple || seat.Status != seatAvailable {
+				continue
+			}
+			if partner := byNumber[models.CoupleSeatPartner(seat.Number)]; partner != nil && partner.Status == seatAvailable {
+				seat.PairID = partner.ID
+			}
+		}
+	}
 }
 
 func counterHeaderView(showtime *models.Showtime, now time.Time) CounterSeatMapView {

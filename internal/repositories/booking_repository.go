@@ -275,13 +275,17 @@ func insertTickets(tx *gorm.DB, booking *models.Booking, tickets []models.Ticket
 
 func buildTickets(tx *gorm.DB, showtime *models.Showtime, seatIDs []int64) ([]models.Ticket, decimal.Decimal, error) {
 	var seats []models.Seat
-	err := tx.Where("id IN ? AND room_id = ? AND is_active", seatIDs, showtime.RoomID).
+	err := tx.Preload("SeatType").
+		Where("id IN ? AND room_id = ? AND is_active", seatIDs, showtime.RoomID).
 		Order("id").Find(&seats).Error
 	if err != nil {
 		return nil, decimal.Zero, err
 	}
 	if len(seats) != len(seatIDs) {
 		return nil, decimal.Zero, apperrors.ErrSeatsInvalid
+	}
+	if err := validateCouplePairs(seats); err != nil {
+		return nil, decimal.Zero, err
 	}
 	var prices []models.ShowtimePrice
 	if err := tx.Where("showtime_id = ?", showtime.ID).Find(&prices).Error; err != nil {
@@ -307,4 +311,25 @@ func buildTickets(tx *gorm.DB, showtime *models.Showtime, seatIDs []int64) ([]mo
 		subtotal = subtotal.Add(price)
 	}
 	return tickets, subtotal, nil
+}
+
+type seatPosition struct {
+	Row    string
+	Number int16
+}
+
+func validateCouplePairs(seats []models.Seat) error {
+	chosen := make(map[seatPosition]bool, len(seats))
+	for _, seat := range seats {
+		chosen[seatPosition{seat.RowLabel, seat.SeatNumber}] = true
+	}
+	for _, seat := range seats {
+		if seat.SeatType.Code != models.SeatTypeCodeCouple {
+			continue
+		}
+		if !chosen[seatPosition{seat.RowLabel, models.CoupleSeatPartner(seat.SeatNumber)}] {
+			return apperrors.ErrCoupleSeatsUnpaired
+		}
+	}
+	return nil
 }

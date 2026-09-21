@@ -105,6 +105,7 @@ SQL
 
 - Endpoint chi tiết nhận `id` (`/api/movies/:id`, `/api/theaters/:id`, `/api/bookings/:id`), không dùng `slug`. `slug` chỉ là dữ liệu trả về cho FE dựng URL.
 - JSON key kiểu camelCase (`fullName`, `accessToken`, `errorCode`).
+- Ghế loại `couple` (`seatType` trong sơ đồ ghế) phải đặt/bán đủ cặp liền nhau `(2k−1, 2k)` cùng `row` — áp cho cả `POST /api/bookings` và bán tại quầy admin; thiếu một nửa cặp → 400 `errorCode`/`errorMessage: "couple seats must be booked in pairs (1-2, 3-4, ...), select both seats of the pair"` (không có `errors`). Seat map API (`GET /api/showtimes/:id/seats`) không trả sẵn cặp — FE tự suy từ `row` + `number` + `seatType == "couple"`; hàng couple lẻ ghế do admin tự tắt ghế cuối khi tạo phòng.
 
 ### Xác thực user (JWT)
 

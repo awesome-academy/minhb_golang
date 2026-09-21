@@ -30,6 +30,7 @@ var (
 	ErrBookingTooLate          = errors.New("bookings close 30 minutes before the showtime starts")
 	ErrSeatsInvalid            = errors.New("one or more seats are not available for this showtime")
 	ErrSeatsTaken              = errors.New("one or more seats have just been taken")
+	ErrCoupleSeatsUnpaired     = errors.New("couple seats must be booked in pairs (1-2, 3-4, ...), select both seats of the pair")
 	ErrBookingPendingExists    = errors.New("you already have a pending booking for this showtime")
 	ErrCounterClosed           = errors.New("counter sales are closed for this showtime")
 	ErrBookingCodeMismatch     = errors.New("booking code does not match")

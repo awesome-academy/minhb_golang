@@ -27,6 +27,12 @@ document.addEventListener('DOMContentLoaded', function () {
     submit.disabled = count === 0;
   }
 
-  checks.forEach(function (check) { check.addEventListener('change', refresh); });
+  checks.forEach(function (check) {
+    check.addEventListener('change', function () {
+      var partner = check.dataset.pair && document.getElementById('seat-' + check.dataset.pair);
+      if (partner && partner.checked !== check.checked) partner.checked = check.checked;
+      refresh();
+    });
+  });
   refresh();
 });

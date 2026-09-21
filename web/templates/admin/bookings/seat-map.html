@@ -51,7 +51,7 @@
           {{range $row.Seats}}
           {{if eq .Status "available"}}
             {{if $.CanSell}}
-            <input type="checkbox" class="seat-check visually-hidden" id="seat-{{.ID}}" name="seat_id" value="{{.ID}}" data-price="{{.Price}}">
+            <input type="checkbox" class="seat-check visually-hidden" id="seat-{{.ID}}" name="seat_id" value="{{.ID}}" data-price="{{.Price}}"{{if .PairID}} data-pair="{{.PairID}}"{{end}}>
             <label for="seat-{{.ID}}" class="seat seat-{{.TypeCode}}" title="{{.Title}}">{{.Number}}</label>
             {{else}}
             <span class="seat seat-{{.TypeCode}}" title="{{.Title}}">{{.Number}}</span>
@@ -71,7 +71,7 @@
   <div class="d-flex flex-wrap align-items-center justify-content-center gap-3 mt-3">
     <span id="sell-summary" class="fw-semibold">0 seats</span>
     <button type="submit" id="sell-submit" class="btn btn-dark btn-sm" disabled>Sell at counter</button>
-    <span class="text-secondary small">Paid at counter, no online hold, no seat limit · click a held or paid seat to open its booking</span>
+    <span class="text-secondary small">Paid at counter, no online hold, no seat limit · couple seats sell in pairs (1-2, 3-4, ...) · click a held or paid seat to open its booking</span>
   </div>
   {{end}}
 </form>
