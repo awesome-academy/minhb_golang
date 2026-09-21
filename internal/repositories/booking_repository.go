@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	bookingCutoff                = 30 * time.Minute
-	expiredHoldsOnSeatsCondition = "status = ? AND expires_at <= now() AND id IN (SELECT booking_id FROM tickets WHERE showtime_id = ? AND seat_id IN ? AND status = ?)"
+	bookingCutoff       = 30 * time.Minute
+	staleHoldsCondition = "status = ? AND expires_at <= now() AND (user_id = ? OR id IN (SELECT booking_id FROM tickets WHERE showtime_id = ? AND seat_id IN ? AND status = ?))"
 )
 
 type CreateBookingInput struct {
@@ -41,25 +41,19 @@ func NewBookingRepository(db *gorm.DB) BookingRepository {
 func (r *bookingRepository) Create(ctx context.Context, input CreateBookingInput) (*models.Booking, error) {
 	var booking *models.Booking
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		now, err := dbNow(tx)
+		if err != nil {
+			return err
+		}
 		showtime, err := lockPublicShowtime(tx, input.ShowtimeID)
 		if err != nil {
 			return err
 		}
-		if !showtime.StartsAt.After(time.Now().Add(bookingCutoff)) {
+		if !showtime.StartsAt.After(now.Add(bookingCutoff)) {
 			return apperrors.ErrBookingTooLate
 		}
-		if err := lockUser(tx, input.UserID); err != nil {
+		if err := expireStaleHolds(tx, input.UserID, input.ShowtimeID, input.SeatIDs); err != nil {
 			return err
-		}
-		if err := expireHoldsOnSeats(tx, input.ShowtimeID, input.SeatIDs); err != nil {
-			return err
-		}
-		pending, err := hasPendingBooking(tx, input.UserID, input.ShowtimeID)
-		if err != nil {
-			return err
-		}
-		if pending {
-			return apperrors.ErrBookingPendingExists
 		}
 		tickets, subtotal, err := buildTickets(tx, showtime, input.SeatIDs)
 		if err != nil {
@@ -76,6 +70,9 @@ func (r *bookingRepository) Create(ctx context.Context, input CreateBookingInput
 			ExpiresAt:      &expiresAt,
 		}
 		if err := tx.Omit(clause.Associations).Create(booking).Error; err != nil {
+			if errors.Is(err, gorm.ErrDuplicatedKey) {
+				return apperrors.ErrBookingPendingExists
+			}
 			return err
 		}
 		for i := range tickets {
@@ -103,16 +100,19 @@ func (r *bookingRepository) ExpireHolds(ctx context.Context) (int64, error) {
 		err := tx.Model(&models.Booking{}).
 			Where("status = ? AND expires_at <= now()", models.BookingStatusPending).
 			Pluck("id", &ids).Error
-		if err != nil || len(ids) == 0 {
+		if err != nil {
 			return err
 		}
-		if err := expireBookings(tx, ids); err != nil {
-			return err
-		}
-		expired = int64(len(ids))
-		return nil
+		expired, err = expireBookings(tx, ids)
+		return err
 	})
 	return expired, err
+}
+
+func dbNow(tx *gorm.DB) (time.Time, error) {
+	var now time.Time
+	err := tx.Raw("SELECT now()").Row().Scan(&now)
+	return now, err
 }
 
 func lockPublicShowtime(tx *gorm.DB, id int64) (*models.Showtime, error) {
@@ -126,40 +126,30 @@ func lockPublicShowtime(tx *gorm.DB, id int64) (*models.Showtime, error) {
 	return &showtime, nil
 }
 
-func lockUser(tx *gorm.DB, id int64) error {
-	return tx.Clauses(clause.Locking{Strength: clause.LockingStrengthUpdate}).
-		Select("id").First(&models.User{}, "id = ?", id).Error
-}
-
-func expireHoldsOnSeats(tx *gorm.DB, showtimeID int64, seatIDs []int64) error {
-	ids, err := bookingIDs(tx, showtimeID, expiredHoldsOnSeatsCondition,
-		models.BookingStatusPending, showtimeID, seatIDs, models.TicketStatusHeld)
+func expireStaleHolds(tx *gorm.DB, userID, showtimeID int64, seatIDs []int64) error {
+	ids, err := bookingIDs(tx, showtimeID, staleHoldsCondition,
+		models.BookingStatusPending, userID, showtimeID, seatIDs, models.TicketStatusHeld)
 	if err != nil {
 		return err
 	}
-	return expireBookings(tx, ids)
+	_, err = expireBookings(tx, ids)
+	return err
 }
 
-func expireBookings(tx *gorm.DB, ids []int64) error {
+func expireBookings(tx *gorm.DB, ids []int64) (int64, error) {
 	if len(ids) == 0 {
-		return nil
+		return 0, nil
 	}
-	err := tx.Model(&models.Booking{}).
+	result := tx.Model(&models.Booking{}).
 		Where("id IN ? AND status = ?", ids, models.BookingStatusPending).
-		Update("status", models.BookingStatusExpired).Error
-	if err != nil {
-		return err
+		Update("status", models.BookingStatusExpired)
+	if result.Error != nil {
+		return 0, result.Error
 	}
-	return releaseTickets(tx, ids)
-}
-
-func hasPendingBooking(tx *gorm.DB, userID, showtimeID int64) (bool, error) {
-	var count int64
-	err := tx.Model(&models.Booking{}).
-		Where("user_id = ? AND showtime_id = ? AND status = ? AND expires_at > now()",
-			userID, showtimeID, models.BookingStatusPending).
-		Count(&count).Error
-	return count > 0, err
+	err := tx.Model(&models.Ticket{}).
+		Where("booking_id IN ? AND status = ?", ids, models.TicketStatusHeld).
+		Update("status", models.TicketStatusReleased).Error
+	return result.RowsAffected, err
 }
 
 func buildTickets(tx *gorm.DB, showtime *models.Showtime, seatIDs []int64) ([]models.Ticket, decimal.Decimal, error) {
