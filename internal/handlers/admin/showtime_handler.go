@@ -58,6 +58,7 @@ type ShowtimeRow struct {
 	Published bool
 	CanEdit   bool
 	EditURL   string
+	SeatsURL  string
 }
 
 type TheaterOption struct {
@@ -543,6 +544,7 @@ func toShowtimeRows(showtimes []models.Showtime, counts map[int64]int64, back st
 			Published: showtime.IsPublished,
 			CanEdit:   showtime.Editable(now),
 			EditURL:   withQuery(showtimesPath+"/"+strconv.FormatInt(showtime.ID, 10)+"/edit", back),
+			SeatsURL:  showtimeSeatsPath(showtime.ID),
 		})
 	}
 	return rows

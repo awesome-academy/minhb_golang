@@ -116,6 +116,7 @@ func run() error {
 	adminRoomService := services.NewAdminRoomService(theaterRepository, roomRepository, seatRepository)
 	adminSeatService := services.NewAdminSeatService(roomRepository, seatRepository, seatTypeRepository)
 	adminShowtimeService := services.NewAdminShowtimeService(theaterRepository, roomRepository, seatRepository, seatTypeRepository, movieRepository, showtimeRepository)
+	adminBookingService := services.NewAdminBookingService(showtimeRepository, seatRepository, bookingRepository)
 
 	// Middleware
 	adminCookie := appmw.AdminSessionCookie{Secure: cfg.AdminCookieSecure, TTL: cfg.AdminSessionTTL}
@@ -137,6 +138,7 @@ func run() error {
 		adminRoomService,
 		adminSeatService,
 		adminShowtimeService,
+		adminBookingService,
 		adminCookie,
 		adminSession,
 		userAuth,

@@ -59,3 +59,9 @@ func (s *Showtime) State(now time.Time) ShowtimeState {
 func (s *Showtime) Editable(now time.Time) bool {
 	return s.State(now) == ShowtimeStateScheduled
 }
+
+const counterSaleGrace = 30 * time.Minute
+
+func (s *Showtime) CounterOpen(now time.Time) bool {
+	return s.IsPublished && s.Status == ShowtimeStatusScheduled && now.Before(s.StartsAt.Add(counterSaleGrace))
+}

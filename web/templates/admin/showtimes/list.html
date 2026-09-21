@@ -51,6 +51,7 @@
         <td>{{.PriceFrom}}</td>
         <td class="text-nowrap"><span class="badge text-bg-{{.Badge}}">{{.Status}}</span> {{if .Published}}<span class="badge text-bg-primary">Published</span>{{else}}<span class="badge text-bg-light text-dark border">Draft</span>{{end}}{{if .Bookings}} <span class="badge text-bg-info">{{.Bookings}} booking{{if ne .Bookings 1}}s{{end}}</span>{{end}}</td>
         <td class="text-end text-nowrap">
+          <a class="btn btn-outline-secondary btn-sm" href="{{.SeatsURL}}">Seats</a>
           {{if .CanEdit}}
           <a class="btn btn-outline-dark btn-sm" href="{{.EditURL}}">Edit</a>
           <form method="post" action="/admin/showtimes/{{.ID}}/publish" class="d-inline">
