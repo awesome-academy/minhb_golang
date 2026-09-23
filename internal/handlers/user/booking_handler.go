@@ -22,13 +22,13 @@ func NewBookingHandler(bookings services.UserBookingService) *BookingHandler {
 }
 
 // @Summary Create a booking
-// @Description Holds 1–8 seats of one published showtime for the current user and returns the booking code to pay at the counter. Seats stay held until `expiresAt` (30 minutes before the showtime starts); unpaid bookings expire automatically and their seats are released. One pending booking per user per showtime. Booking closes 30 minutes before the showtime starts. Prices come from the showtime's price table, never from the request.
+// @Description Holds 1–8 seats of one published showtime for the current user and returns the booking code to pay at the counter. Seats stay held until `expiresAt` (30 minutes before the showtime starts); unpaid bookings expire automatically and their seats are released. One pending booking per user per showtime. Booking closes 30 minutes before the showtime starts. Prices come from the showtime's price table, never from the request. Couple seats (`seatType: couple` in the seat map) are sold in pairs: seat `2k-1` together with seat `2k` of the same row (1-2, 3-4, ...); a request that holds only one seat of a pair, or seats of two different pairs, is rejected with 400.
 // @Tags bookings
 // @Accept json
 // @Produce json
 // @Param request body dto.CreateBookingRequest true "Showtime and seat ids (1–8, unique)"
 // @Success 201 {object} dto.BookingResponse
-// @Failure 400 {object} utils.ValidationError "validation failed; or booking closed (the showtime starts in 30 minutes or less); or a seat is not bookable (wrong room, disabled, unpriced, unknown) — the last two return {errorCode, errorMessage} without `errors`"
+// @Failure 400 {object} utils.ValidationError "validation failed; or booking closed (the showtime starts in 30 minutes or less); or a seat is not bookable (wrong room, disabled, unpriced, unknown); or a couple seat is missing its pair — the last three return {errorCode, errorMessage} without `errors`"
 // @Failure 401 {object} utils.APIErrorResponse
 // @Failure 404 {object} utils.APIErrorResponse "showtime not found, not published, cancelled or already started"
 // @Failure 409 {object} utils.APIErrorResponse "a seat was just taken by someone else, or you already have a pending booking for this showtime"
@@ -55,7 +55,7 @@ func (h *BookingHandler) Create(c *echo.Context) error {
 
 func bookingError(err error) error {
 	switch {
-	case errors.Is(err, apperrors.ErrBookingTooLate), errors.Is(err, apperrors.ErrSeatsInvalid):
+	case errors.Is(err, apperrors.ErrBookingTooLate), errors.Is(err, apperrors.ErrSeatsInvalid), errors.Is(err, apperrors.ErrCoupleSeatsUnpaired):
 		return utils.APIError(http.StatusBadRequest, err.Error())
 	case errors.Is(err, apperrors.ErrSeatsTaken), errors.Is(err, apperrors.ErrBookingPendingExists):
 		return utils.APIError(http.StatusConflict, err.Error())

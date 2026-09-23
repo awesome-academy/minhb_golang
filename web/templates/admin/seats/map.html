@@ -58,6 +58,7 @@
 <div class="d-flex flex-wrap align-items-center justify-content-center gap-3 mb-3 small">
   {{range .SeatTypes}}<span><span class="seat seat-{{.Code}} seat-legend"></span> {{.Name}}</span>{{end}}
   <span><span class="seat seat-off seat-legend"></span> Disabled</span>
+  <span class="text-secondary">Couple seats sell in pairs (1-2, 3-4, ...): disable the last seat of an odd couple row.</span>
   <span class="text-secondary">{{.TotalSeats}} seats · click a seat to enable or disable it</span>
 </div>
 <div class="seat-map" data-csrf="{{.CSRFToken}}">

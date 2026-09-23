@@ -14,3 +14,10 @@ type Seat struct {
 
 	SeatType SeatType
 }
+
+func CoupleSeatPartner(number int16) int16 {
+	if number%2 == 1 {
+		return number + 1
+	}
+	return number - 1
+}

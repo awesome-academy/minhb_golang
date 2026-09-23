@@ -2,6 +2,8 @@ package models
 
 import "time"
 
+const SeatTypeCodeCouple = "couple"
+
 type SeatType struct {
 	ID        int64  `gorm:"primaryKey"`
 	Code      string `gorm:"not null;uniqueIndex"`

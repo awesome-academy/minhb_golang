@@ -77,7 +77,7 @@ func (h *ShowtimeHandler) ByTheater(c *echo.Context) error {
 }
 
 // @Summary Seat map of a showtime
-// @Description Returns every seat of the room with its status: `available`, `held` (active hold), `sold` (paid) or `blocked` (seat disabled or its seat type has no price for this showtime, `price` is then null). Only published, scheduled, not-yet-started showtimes in active rooms and theaters are visible; anything else is 404.
+// @Description Returns every seat of the room with its status: `available`, `held` (active hold), `sold` (paid) or `blocked` (seat disabled or its seat type has no price for this showtime, `price` is then null). Couple seats (`seatType: couple`) are sold in pairs: seat `2k-1` with seat `2k` of the same row (1-2, 3-4, ...) — select both before booking; the pair is derived from `row` and `number`. Only published, scheduled, not-yet-started showtimes in active rooms and theaters are visible; anything else is 404.
 // @Tags showtimes
 // @Produce json
 // @Param id path int true "Showtime ID"

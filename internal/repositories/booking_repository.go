@@ -15,6 +15,7 @@ import (
 
 const (
 	bookingCutoff       = 30 * time.Minute
+	counterNote         = "Paid at counter"
 	staleHoldsCondition = "status = ? AND expires_at <= now() AND (user_id = ? OR id IN (SELECT booking_id FROM tickets WHERE showtime_id = ? AND seat_id IN ? AND status = ?))"
 )
 
@@ -28,6 +29,9 @@ type CreateBookingInput struct {
 type BookingRepository interface {
 	Create(ctx context.Context, input CreateBookingInput) (*models.Booking, error)
 	ExpireHolds(ctx context.Context) (int64, error)
+	ActiveByShowtime(ctx context.Context, showtimeID int64) ([]models.Booking, error)
+	CreateCounterSale(ctx context.Context, input CreateBookingInput) (*models.Booking, error)
+	ConfirmPayment(ctx context.Context, id int64, code string) (*models.Booking, error)
 }
 
 type bookingRepository struct {
@@ -75,17 +79,7 @@ func (r *bookingRepository) Create(ctx context.Context, input CreateBookingInput
 			}
 			return err
 		}
-		for i := range tickets {
-			tickets[i].BookingID = booking.ID
-		}
-		if err := tx.Omit(clause.Associations).Create(&tickets).Error; err != nil {
-			if errors.Is(err, gorm.ErrDuplicatedKey) {
-				return apperrors.ErrSeatsTaken
-			}
-			return err
-		}
-		booking.Tickets = tickets
-		return nil
+		return insertTickets(tx, booking, tickets)
 	})
 	if err != nil {
 		return nil, err
@@ -107,6 +101,119 @@ func (r *bookingRepository) ExpireHolds(ctx context.Context) (int64, error) {
 		return err
 	})
 	return expired, err
+}
+
+func (r *bookingRepository) ActiveByShowtime(ctx context.Context, showtimeID int64) ([]models.Booking, error) {
+	var bookings []models.Booking
+	err := r.db.WithContext(ctx).
+		Preload("User", unscoped).
+		Preload("Tickets", "status IN ?", activeTicketStatuses).
+		Where("showtime_id = ?", showtimeID).
+		Where(activeBookingCondition, models.BookingStatusConfirmed, models.BookingStatusPending).
+		Order("id").
+		Find(&bookings).Error
+	if err != nil {
+		return nil, err
+	}
+	return bookings, nil
+}
+
+func (r *bookingRepository) CreateCounterSale(ctx context.Context, input CreateBookingInput) (*models.Booking, error) {
+	var booking *models.Booking
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		now, err := dbNow(tx)
+		if err != nil {
+			return err
+		}
+		var showtime models.Showtime
+		err = tx.Clauses(clause.Locking{Strength: clause.LockingStrengthShare}).
+			First(&showtime, "id = ?", input.ShowtimeID).Error
+		if err != nil {
+			return err
+		}
+		if !showtime.CounterOpen(now) {
+			return apperrors.ErrCounterClosed
+		}
+		if err := expireStaleHolds(tx, input.UserID, input.ShowtimeID, input.SeatIDs); err != nil {
+			return err
+		}
+		tickets, subtotal, err := buildTickets(tx, &showtime, input.SeatIDs)
+		if err != nil {
+			return err
+		}
+		for i := range tickets {
+			tickets[i].Status = models.TicketStatusPaid
+		}
+		note := counterNote
+		booking = &models.Booking{
+			Code:           input.Code,
+			UserID:         input.UserID,
+			ShowtimeID:     input.ShowtimeID,
+			Status:         models.BookingStatusConfirmed,
+			Subtotal:       subtotal,
+			DiscountAmount: decimal.Zero,
+			ConfirmedAt:    &now,
+			Note:           &note,
+		}
+		if err := tx.Omit(clause.Associations).Create(booking).Error; err != nil {
+			return err
+		}
+		return insertTickets(tx, booking, tickets)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return booking, nil
+}
+
+func (r *bookingRepository) ConfirmPayment(ctx context.Context, id int64, code string) (*models.Booking, error) {
+	var booking models.Booking
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		now, err := dbNow(tx)
+		if err != nil {
+			return err
+		}
+		err = tx.Clauses(clause.Locking{Strength: clause.LockingStrengthUpdate}).
+			First(&booking, "id = ?", id).Error
+		if err != nil {
+			return err
+		}
+		if booking.Code != code {
+			return apperrors.ErrBookingCodeMismatch
+		}
+		switch booking.Status {
+		case models.BookingStatusConfirmed:
+			return apperrors.ErrBookingAlreadyConfirmed
+		case models.BookingStatusCancelled:
+			return apperrors.ErrBookingCancelled
+		case models.BookingStatusExpired:
+			return apperrors.ErrBookingExpired
+		}
+		result := tx.Model(&models.Booking{}).
+			Where("id = ? AND status = ? AND expires_at > now()", id, models.BookingStatusPending).
+			Updates(map[string]any{
+				"status": models.BookingStatusConfirmed, "confirmed_at": now, "expires_at": nil, "note": counterNote,
+			})
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return apperrors.ErrBookingExpired
+		}
+		err = tx.Model(&models.Ticket{}).
+			Where("booking_id = ? AND status = ?", id, models.TicketStatusHeld).
+			Update("status", models.TicketStatusPaid).Error
+		if err != nil {
+			return err
+		}
+		note := counterNote
+		booking.Status, booking.ConfirmedAt, booking.ExpiresAt, booking.Note = models.BookingStatusConfirmed, &now, nil, &note
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &booking, nil
 }
 
 func dbNow(tx *gorm.DB) (time.Time, error) {
@@ -152,15 +259,33 @@ func expireBookings(tx *gorm.DB, ids []int64) (int64, error) {
 	return result.RowsAffected, err
 }
 
+func insertTickets(tx *gorm.DB, booking *models.Booking, tickets []models.Ticket) error {
+	for i := range tickets {
+		tickets[i].BookingID = booking.ID
+	}
+	if err := tx.Omit(clause.Associations).Create(&tickets).Error; err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return apperrors.ErrSeatsTaken
+		}
+		return err
+	}
+	booking.Tickets = tickets
+	return nil
+}
+
 func buildTickets(tx *gorm.DB, showtime *models.Showtime, seatIDs []int64) ([]models.Ticket, decimal.Decimal, error) {
 	var seats []models.Seat
-	err := tx.Where("id IN ? AND room_id = ? AND is_active", seatIDs, showtime.RoomID).
+	err := tx.Preload("SeatType").
+		Where("id IN ? AND room_id = ? AND is_active", seatIDs, showtime.RoomID).
 		Order("id").Find(&seats).Error
 	if err != nil {
 		return nil, decimal.Zero, err
 	}
 	if len(seats) != len(seatIDs) {
 		return nil, decimal.Zero, apperrors.ErrSeatsInvalid
+	}
+	if err := validateCouplePairs(seats); err != nil {
+		return nil, decimal.Zero, err
 	}
 	var prices []models.ShowtimePrice
 	if err := tx.Where("showtime_id = ?", showtime.ID).Find(&prices).Error; err != nil {
@@ -186,4 +311,25 @@ func buildTickets(tx *gorm.DB, showtime *models.Showtime, seatIDs []int64) ([]mo
 		subtotal = subtotal.Add(price)
 	}
 	return tickets, subtotal, nil
+}
+
+type seatPosition struct {
+	Row    string
+	Number int16
+}
+
+func validateCouplePairs(seats []models.Seat) error {
+	chosen := make(map[seatPosition]bool, len(seats))
+	for _, seat := range seats {
+		chosen[seatPosition{seat.RowLabel, seat.SeatNumber}] = true
+	}
+	for _, seat := range seats {
+		if seat.SeatType.Code != models.SeatTypeCodeCouple {
+			continue
+		}
+		if !chosen[seatPosition{seat.RowLabel, models.CoupleSeatPartner(seat.SeatNumber)}] {
+			return apperrors.ErrCoupleSeatsUnpaired
+		}
+	}
+	return nil
 }
