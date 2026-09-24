@@ -96,7 +96,7 @@ func updatedAtToken(t time.Time) string {
 }
 
 func formatVN(t time.Time, layout string) string {
-	return t.In(utils.Location).Format(layout)
+	return utils.FormatVN(t, layout)
 }
 
 func derefString(s *string) string {
