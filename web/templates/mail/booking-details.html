@@ -1,0 +1,14 @@
+{{define "booking-details"}}
+    <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;font-size:14px;">
+      <tr><td style="padding:4px 0;color:#71717a;width:110px;">Movie</td><td style="padding:4px 0;"><strong>{{.MovieTitle}}</strong> ({{.Format}})</td></tr>
+      <tr><td style="padding:4px 0;color:#71717a;">Theater</td><td style="padding:4px 0;">{{.Theater}}<br>{{.Address}}</td></tr>
+      <tr><td style="padding:4px 0;color:#71717a;">Room</td><td style="padding:4px 0;">{{.Room}}</td></tr>
+      <tr><td style="padding:4px 0;color:#71717a;">Showtime</td><td style="padding:4px 0;">{{.StartsAt}}</td></tr>
+    </table>
+    <h2 style="margin:24px 0 8px;font-size:16px;">Seats</h2>
+    <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;font-size:14px;border-collapse:collapse;">
+      <tr style="background:#f4f4f5;"><th align="left" style="padding:8px;">Seat</th><th align="right" style="padding:8px;">Price ({{.Currency}})</th></tr>
+      {{range .Tickets}}<tr><td style="padding:8px;border-top:1px solid #e4e4e7;">{{.Seat}}</td><td align="right" style="padding:8px;border-top:1px solid #e4e4e7;">{{.Price}}</td></tr>
+      {{end}}<tr><td style="padding:8px;border-top:2px solid #18181b;font-weight:bold;">Total</td><td align="right" style="padding:8px;border-top:2px solid #18181b;font-weight:bold;">{{.Total}} {{.Currency}}</td></tr>
+    </table>
+{{end}}

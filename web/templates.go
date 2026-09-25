@@ -19,6 +19,7 @@ const (
 	adminRoot     = "templates/admin"
 	partialsRoot  = "templates/admin/partials"
 	layoutFile    = "templates/admin/layout.html"
+	mailRoot      = "templates/mail"
 )
 
 type Templates map[string]*template.Template
@@ -52,6 +53,14 @@ func ParseTemplates() (Templates, error) {
 		return nil, errors.New("no admin templates found under " + adminRoot)
 	}
 	return templates, nil
+}
+
+func ParseMailTemplates() (*template.Template, error) {
+	tmpl, err := template.ParseFS(Files, mailRoot+"/*.html")
+	if err != nil {
+		return nil, fmt.Errorf("parse mail templates: %w", err)
+	}
+	return tmpl.Option("missingkey=error"), nil
 }
 
 func (t Templates) ExecuteTemplate(w io.Writer, name string, data any) error {

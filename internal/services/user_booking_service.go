@@ -3,8 +3,6 @@ package services
 import (
 	"context"
 	"crypto/rand"
-	"log/slog"
-	"time"
 
 	"cinema-booking/internal/dto"
 	"cinema-booking/internal/models"
@@ -14,7 +12,6 @@ import (
 const (
 	bookingCodeAlphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
 	bookingCodeLength   = 8
-	notifyTimeout       = 15 * time.Second
 )
 
 type UserBookingService interface {
@@ -24,10 +21,11 @@ type UserBookingService interface {
 type userBookingService struct {
 	bookings      repositories.BookingRepository
 	notifications AdminNotificationService
+	mailer        BookingMailer
 }
 
-func NewUserBookingService(bookings repositories.BookingRepository, notifications AdminNotificationService) UserBookingService {
-	return &userBookingService{bookings: bookings, notifications: notifications}
+func NewUserBookingService(bookings repositories.BookingRepository, notifications AdminNotificationService, mailer BookingMailer) UserBookingService {
+	return &userBookingService{bookings: bookings, notifications: notifications, mailer: mailer}
 }
 
 func (s *userBookingService) Create(ctx context.Context, userID int64, request dto.CreateBookingRequest) (*models.Booking, error) {
@@ -44,26 +42,8 @@ func (s *userBookingService) Create(ctx context.Context, userID int64, request d
 	if err != nil {
 		return nil, err
 	}
-	go s.notifyCreated(booking.ID)
+	go notifyBooking(s.bookings, booking.ID, "created", s.notifications.BookingCreated, s.mailer.SendBookingCreated)
 	return booking, nil
-}
-
-func (s *userBookingService) notifyCreated(id int64) {
-	defer func() {
-		if r := recover(); r != nil {
-			slog.Error("notify booking created panicked", "booking_id", id, "panic", r)
-		}
-	}()
-	ctx, cancel := context.WithTimeout(context.Background(), notifyTimeout)
-	defer cancel()
-	booking, err := s.bookings.FindDetail(ctx, id)
-	if err != nil {
-		slog.ErrorContext(ctx, "load booking for notifications", "booking_id", id, "error", err)
-		return
-	}
-	if err := s.notifications.BookingCreated(ctx, booking); err != nil {
-		slog.ErrorContext(ctx, "notify admins", "code", booking.Code, "error", err)
-	}
 }
 
 func newBookingCode() (string, error) {
