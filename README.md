@@ -21,6 +21,7 @@ internal/
 ├── user_auth/           # JWT cho user API: Claims, TokenManager (ký/parse HS256, jti, role)
 ├── dto/                 # Request/response DTO (json + validate + example tags)
 ├── errors/              # Sentinel error nghiệp vụ dùng chung (ErrInvalidCredentials, ErrEmailTaken...), import alias apperrors
+├── mail/                # Gửi email bằng gomail.v2: 2 mail cho booking online (tạo booking không QR, admin confirm thanh toán tại quầy kèm QR mỗi vé go-qrcode nhúng inline), gọi async
 ├── middleware/          # AdminCSRF, AdminNoStore, RequireAdminSession, RequireUser (JWT), helper cookie AdminSessionCookie
 ├── handlers/            # routes.go duy nhất đăng ký mọi route, health handler, HTTP error handler
 │   ├── admin/           # Handler admin SSR (package admin)
@@ -33,8 +34,9 @@ pkg/
 ├── db/                  # Kết nối GORM/pgx, pool
 ├── logger/              # Khởi tạo slog
 └── redis/               # Kết nối go-redis (session admin, token user), ping khi khởi động
-web/                     # Admin SSR: template html/template + static CSS, embed vào binary
-├── templates/admin/     # layout.html + một file mỗi trang (login.html, dashboard.html, error.html...), cho phép thư mục con
+web/                     # Template html/template + static CSS, embed vào binary
+├── templates/admin/     # Admin SSR: layout.html + một file mỗi trang (login.html, dashboard.html, error.html...), cho phép thư mục con
+├── templates/mail/      # Template email HTML tự chứa, inline CSS (booking-created.html, booking-paid.html, partial booking-details.html), parse bằng web.ParseMailTemplates
 └── static/              # bootstrap.min.css (5.3.3, vendored) + admin.css
 ```
 
@@ -42,13 +44,13 @@ web/                     # Admin SSR: template html/template + static CSS, embed
 
 ```bash
 cp .env.example .env                                # mặc định khớp docker-compose
-docker compose up -d cinema-postgres cinema-redis   # PostgreSQL 15 tại :5434, Redis 7 tại :6380
+docker compose up -d cinema-postgres cinema-redis cinema-mailpit   # PostgreSQL 15 tại :5434, Redis 7 tại :6380, Mailpit SMTP :1025 + UI :8025
 go run ./cmd/migrate -direction=up                  # tạo extension, enum và 12 bảng theo thiết kế
 go run ./cmd/app                                    # API tại http://localhost:8080
 go run ./cmd/worker                                 # job hết hạn hold, chạy song song với API (terminal khác)
 ```
 
-Kiểm tra: `curl localhost:8080/api/health` → `{"status":"ok"}`; Swagger UI: http://localhost:8080/swaggers; trang admin: http://localhost:8080/admin/login.
+Kiểm tra: `curl localhost:8080/api/health` → `{"status":"ok"}`; Swagger UI: http://localhost:8080/swaggers; trang admin: http://localhost:8080/admin/login; hộp thư dev (email booking): http://localhost:8025.
 
 ### Tạo admin dev
 
@@ -76,7 +78,8 @@ SQL
 | Kiểm tra tĩnh | `go vet ./...` |
 | Format | `gofmt -w <files>` |
 | Sinh lại Swagger (OpenAPI 3.1) | `go run github.com/swaggo/swag/v2/cmd/swag@v2.0.0-rc4 init --v3.1 --parseInternal -g cmd/app/main.go -o api/swagger --packageName swagger` |
-| PostgreSQL + Redis up / down | `docker compose up -d cinema-postgres cinema-redis` / `docker compose down` |
+| PostgreSQL + Redis + Mailpit up / down | `docker compose up -d cinema-postgres cinema-redis cinema-mailpit` / `docker compose down` |
+| Xem email đã gửi (Mailpit) | http://localhost:8025 hoặc `curl -s localhost:8025/api/v1/messages` |
 | Xem session admin trong Redis | `docker compose exec -T cinema-redis redis-cli --scan --pattern 'admin_session:*'` |
 | Xem token user trong Redis | `docker compose exec -T cinema-redis redis-cli --scan --pattern 'user_*'` |
 
@@ -96,6 +99,10 @@ SQL
 | `JWT_SECRET` | bắt buộc | Khóa ký HS256 cho JWT user API, tối thiểu 32 ký tự; thiếu hoặc ngắn hơn → app dừng ngay |
 | `JWT_ACCESS_TTL` | `2h` | Go duration > 0; thời gian sống access token; hết hạn thì client đăng nhập lại |
 | `HOLD_EXPIRY_INTERVAL` | `60s` | Go duration > 0; chu kỳ `cmd/worker` chuyển booking `pending` quá `expires_at` → `expired` và vé → `released` (chạy 1 lần lúc khởi động rồi mỗi chu kỳ; `cmd/app` không đọc biến này) |
+| `SMTP_HOST` / `SMTP_PORT` | `localhost` / `1025` | SMTP gửi email booking; mặc định khớp Mailpit trong docker-compose. Port 465 → SSL, 587 → STARTTLS nếu server hỗ trợ. Không ping lúc khởi động: SMTP lỗi thì booking vẫn 201, chỉ log |
+| `SMTP_USERNAME` / `SMTP_PASSWORD` | rỗng | Rỗng → không auth (Mailpit); SMTP thật (Gmail app password...) thì điền |
+| `MAIL_FROM` | `Cinema Booking <no-reply@cinema.local>` | Header `From` của email booking |
+| `MAILPIT_SMTP_PORT` / `MAILPIT_UI_PORT` | `1025` / `8025` | Chỉ dùng bởi Docker Compose (host port của `cinema-mailpit`) |
 | `POSTGRES_*` | `cinema` / `5434` | Chỉ dùng bởi Docker Compose |
 | `REDIS_PORT` | `6380` | Chỉ dùng bởi Docker Compose (host port của `cinema-redis`) |
 

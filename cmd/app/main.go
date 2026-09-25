@@ -12,6 +12,7 @@ import (
 	_ "cinema-booking/api/swagger"
 	"cinema-booking/config"
 	"cinema-booking/internal/handlers"
+	"cinema-booking/internal/mail"
 	appmw "cinema-booking/internal/middleware"
 	"cinema-booking/internal/repositories"
 	"cinema-booking/internal/services"
@@ -69,6 +70,10 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	mailTemplates, err := web.ParseMailTemplates()
+	if err != nil {
+		return err
+	}
 
 	e := echo.NewWithConfig(echo.Config{NoGroupAutoRegister404Routes: true})
 	e.Logger = log
@@ -102,6 +107,11 @@ func run() error {
 	adminSessionRepository := repositories.NewAdminSessionRepository(redisClient, cfg.AdminSessionTTL)
 	userTokenRepository := repositories.NewUserTokenRepository(redisClient)
 
+	// Mailers
+	bookingMailer := mail.NewBookingMailer(mail.Options{
+		Host: cfg.SMTPHost, Port: cfg.SMTPPort, Username: cfg.SMTPUsername, Password: cfg.SMTPPassword, From: cfg.MailFrom,
+	}, mailTemplates)
+
 	// Services
 	tokenManager := userauth.NewTokenManager(cfg.JWTSecret, cfg.JWTAccessTTL)
 	healthService := services.NewHealthService(healthRepository)
@@ -109,14 +119,14 @@ func run() error {
 	userMovieService := services.NewUserMovieService(movieRepository)
 	userTheaterService := services.NewUserTheaterService(theaterRepository)
 	userShowtimeService := services.NewUserShowtimeService(movieRepository, theaterRepository, showtimeRepository, seatRepository, ticketRepository)
-	userBookingService := services.NewUserBookingService(bookingRepository)
+	userBookingService := services.NewUserBookingService(bookingRepository, bookingMailer)
 	adminAuthService := services.NewAdminAuthService(userRepository, adminSessionRepository)
 	adminMovieService := services.NewAdminMovieService(movieRepository, genreRepository)
 	adminTheaterService := services.NewAdminTheaterService(theaterRepository)
 	adminRoomService := services.NewAdminRoomService(theaterRepository, roomRepository, seatRepository)
 	adminSeatService := services.NewAdminSeatService(roomRepository, seatRepository, seatTypeRepository)
 	adminShowtimeService := services.NewAdminShowtimeService(theaterRepository, roomRepository, seatRepository, seatTypeRepository, movieRepository, showtimeRepository)
-	adminBookingService := services.NewAdminBookingService(showtimeRepository, seatRepository, bookingRepository)
+	adminBookingService := services.NewAdminBookingService(showtimeRepository, seatRepository, bookingRepository, bookingMailer)
 
 	// Middleware
 	adminCookie := appmw.AdminSessionCookie{Secure: cfg.AdminCookieSecure, TTL: cfg.AdminSessionTTL}

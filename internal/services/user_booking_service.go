@@ -20,10 +20,11 @@ type UserBookingService interface {
 
 type userBookingService struct {
 	bookings repositories.BookingRepository
+	mailer   BookingMailer
 }
 
-func NewUserBookingService(bookings repositories.BookingRepository) UserBookingService {
-	return &userBookingService{bookings: bookings}
+func NewUserBookingService(bookings repositories.BookingRepository, mailer BookingMailer) UserBookingService {
+	return &userBookingService{bookings: bookings, mailer: mailer}
 }
 
 func (s *userBookingService) Create(ctx context.Context, userID int64, request dto.CreateBookingRequest) (*models.Booking, error) {
@@ -31,12 +32,17 @@ func (s *userBookingService) Create(ctx context.Context, userID int64, request d
 	if err != nil {
 		return nil, err
 	}
-	return s.bookings.Create(ctx, repositories.CreateBookingInput{
+	booking, err := s.bookings.Create(ctx, repositories.CreateBookingInput{
 		UserID:     userID,
 		ShowtimeID: request.ShowtimeID,
 		SeatIDs:    request.SeatIDs,
 		Code:       code,
 	})
+	if err != nil {
+		return nil, err
+	}
+	go notifyBooking(s.bookings, booking.ID, "created", s.mailer.SendBookingCreated)
+	return booking, nil
 }
 
 func newBookingCode() (string, error) {

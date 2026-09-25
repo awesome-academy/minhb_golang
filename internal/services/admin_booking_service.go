@@ -25,10 +25,11 @@ type adminBookingService struct {
 	showtimes repositories.ShowtimeRepository
 	seats     repositories.SeatRepository
 	bookings  repositories.BookingRepository
+	mailer    BookingMailer
 }
 
-func NewAdminBookingService(showtimes repositories.ShowtimeRepository, seats repositories.SeatRepository, bookings repositories.BookingRepository) AdminBookingService {
-	return &adminBookingService{showtimes: showtimes, seats: seats, bookings: bookings}
+func NewAdminBookingService(showtimes repositories.ShowtimeRepository, seats repositories.SeatRepository, bookings repositories.BookingRepository, mailer BookingMailer) AdminBookingService {
+	return &adminBookingService{showtimes: showtimes, seats: seats, bookings: bookings, mailer: mailer}
 }
 
 func (s *adminBookingService) SeatMap(ctx context.Context, showtimeID int64) (*CounterSeatMap, error) {
@@ -61,5 +62,10 @@ func (s *adminBookingService) Sell(ctx context.Context, showtimeID, adminID int6
 }
 
 func (s *adminBookingService) Confirm(ctx context.Context, bookingID int64, form dto.AdminConfirmBookingForm) (*models.Booking, error) {
-	return s.bookings.ConfirmPayment(ctx, bookingID, strings.ToUpper(strings.TrimSpace(form.Code)))
+	booking, err := s.bookings.ConfirmPayment(ctx, bookingID, strings.ToUpper(strings.TrimSpace(form.Code)))
+	if err != nil {
+		return nil, err
+	}
+	go notifyBooking(s.bookings, booking.ID, "paid", s.mailer.SendBookingPaid)
+	return booking, nil
 }
