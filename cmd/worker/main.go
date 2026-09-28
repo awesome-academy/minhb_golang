@@ -52,7 +52,11 @@ func run() error {
 	holdExpiryJob := jobs.NewHoldExpiryJob(repositories.NewBookingRepository(database))
 	movieStatusJob := jobs.NewMovieStatusJob(repositories.NewMovieRepository(database))
 
-	scheduler := cron.New(cron.WithLocation(utils.Location))
+	cronLogger := cron.PrintfLogger(slog.NewLogLogger(slog.Default().Handler(), slog.LevelError))
+	scheduler := cron.New(
+		cron.WithLocation(utils.Location),
+		cron.WithChain(cron.Recover(cronLogger), cron.SkipIfStillRunning(cronLogger)),
+	)
 	if _, err := scheduler.AddFunc(cfg.HoldExpiryCron, func() { holdExpiryJob.Run(ctx) }); err != nil {
 		return fmt.Errorf("HOLD_EXPIRY_CRON %q: %w", cfg.HoldExpiryCron, err)
 	}
