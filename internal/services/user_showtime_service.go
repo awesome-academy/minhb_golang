@@ -97,8 +97,8 @@ func (s *userShowtimeService) schedule(ctx context.Context, filter repositories.
 
 func scheduleDay(date string) time.Time {
 	if date == "" {
-		now := time.Now().In(utils.Location)
-		return time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, utils.Location)
+		from, _ := utils.DayRange(time.Now())
+		return from
 	}
 	day, _ := time.ParseInLocation(time.DateOnly, date, utils.Location)
 	return day
