@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded', function () {
   var bell = document.getElementById('notif-bell');
   if (!bell) return;
 
-  var MAX_ITEMS = 20;
+  var MAX_ITEMS = 100;
   var TOAST_MS = 8000;
   var INITIAL_BACKOFF_MS = 1000;
   var MAX_BACKOFF_MS = 30000;
@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', function () {
   var unread = 0;
   var backoff = INITIAL_BACKOFF_MS;
 
-  loadRecent().then(connect);
+  connect(loadRecent);
 
   toggle.addEventListener('click', function () {
     menu.classList.toggle('show');
@@ -28,25 +28,31 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   function loadRecent() {
-    return fetch(bell.dataset.recentUrl, { headers: { Accept: 'application/json' } }).then(function (response) {
+    fetch(bell.dataset.recentUrl + '?limit=' + MAX_ITEMS, { headers: { Accept: 'application/json' } }).then(function (response) {
       if (!response.ok) throw new Error(response.statusText);
       return response.json();
     }).then(function (items) {
-      list.textContent = '';
-      items.forEach(function (item) { list.appendChild(renderItem(item)); });
+      items.forEach(function (item) {
+        if (!hasItem(item)) list.appendChild(renderItem(item));
+      });
+      trimList();
       renderEmpty();
     }).catch(function () {});
   }
 
-  function connect() {
+  function connect(onOpen) {
     var scheme = location.protocol === 'https:' ? 'wss://' : 'ws://';
     var socket = new WebSocket(scheme + location.host + bell.dataset.wsPath);
-    socket.onopen = function () { backoff = INITIAL_BACKOFF_MS; };
+    socket.onopen = function () {
+      backoff = INITIAL_BACKOFF_MS;
+      if (onOpen) onOpen();
+    };
     socket.onmessage = function (event) {
       var item;
       try { item = JSON.parse(event.data); } catch (err) { return; }
+      if (hasItem(item)) return;
       list.insertBefore(renderItem(item), list.firstChild);
-      while (list.children.length > MAX_ITEMS) list.removeChild(list.lastChild);
+      trimList();
       renderEmpty();
       unread += 1;
       renderBadge();
@@ -58,10 +64,19 @@ document.addEventListener('DOMContentLoaded', function () {
     };
   }
 
+  function hasItem(item) {
+    return !!list.querySelector('[data-booking-id="' + item.bookingId + '"]');
+  }
+
+  function trimList() {
+    while (list.children.length > MAX_ITEMS) list.removeChild(list.lastChild);
+  }
+
   function renderItem(item) {
     var node = document.createElement('a');
     node.className = 'list-group-item list-group-item-action small';
     node.href = seatMapURL(item);
+    node.dataset.bookingId = item.bookingId;
 
     var place = document.createElement('strong');
     place.className = 'd-block';
@@ -72,7 +87,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     var detail = document.createElement('div');
     detail.className = 'text-secondary';
-    detail.textContent = seatsText(item) + ' · ' + item.total + ' · ' + item.userEmail;
+    detail.textContent = seatsText(item) + ' · ' + totalText(item) + ' · ' + item.userEmail;
 
     node.appendChild(place);
     node.appendChild(show);
@@ -118,5 +133,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function seatsText(item) {
     return (item.seats || []).join(', ');
+  }
+
+  function totalText(item) {
+    return item.currency ? item.total + ' ' + item.currency : item.total;
   }
 });

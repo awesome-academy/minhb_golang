@@ -2,6 +2,7 @@ package admin
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v5"
@@ -22,7 +23,8 @@ func NewNotificationHandler(service services.AdminNotificationService, hub *real
 }
 
 func (h *NotificationHandler) Recent(c *echo.Context) error {
-	items, err := h.service.Recent(c.Request().Context())
+	limit, _ := strconv.Atoi(c.QueryParam("limit"))
+	items, err := h.service.Recent(c.Request().Context(), limit)
 	if err != nil {
 		return utils.ServiceError(err)
 	}

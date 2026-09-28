@@ -24,6 +24,7 @@ type AdminNotification struct {
 	StartsAt   string    `json:"startsAt"`
 	Seats      []string  `json:"seats"`
 	Total      string    `json:"total"`
+	Currency   string    `json:"currency"`
 	CreatedAt  time.Time `json:"createdAt"`
 }
 
@@ -42,7 +43,8 @@ func NewBookingNotification(booking *models.Booking) AdminNotification {
 		Room:       booking.Showtime.Room.Name,
 		StartsAt:   utils.FormatVN(booking.Showtime.StartsAt, notificationTimeLayout),
 		Seats:      seats,
-		Total:      booking.Subtotal.Sub(booking.DiscountAmount).StringFixed(2),
+		Total:      booking.Total().StringFixed(2),
+		Currency:   booking.Currency,
 		CreatedAt:  booking.CreatedAt.UTC(),
 	}
 }

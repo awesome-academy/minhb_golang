@@ -34,3 +34,7 @@ type Booking struct {
 	Showtime Showtime
 	Tickets  []Ticket
 }
+
+func (b Booking) Total() decimal.Decimal {
+	return b.Subtotal.Sub(b.DiscountAmount)
+}

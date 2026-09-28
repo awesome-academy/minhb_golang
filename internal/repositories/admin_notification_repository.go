@@ -14,7 +14,7 @@ const (
 
 type AdminNotificationRepository interface {
 	Push(ctx context.Context, payload []byte) error
-	Recent(ctx context.Context) ([]json.RawMessage, error)
+	Recent(ctx context.Context, limit int) ([]json.RawMessage, error)
 }
 
 type adminNotificationRepository struct {
@@ -33,8 +33,11 @@ func (r *adminNotificationRepository) Push(ctx context.Context, payload []byte) 
 	return err
 }
 
-func (r *adminNotificationRepository) Recent(ctx context.Context) ([]json.RawMessage, error) {
-	values, err := r.client.LRange(ctx, adminNotificationsKey, 0, adminNotificationsMax-1).Result()
+func (r *adminNotificationRepository) Recent(ctx context.Context, limit int) ([]json.RawMessage, error) {
+	if limit < 1 || limit > adminNotificationsMax {
+		limit = adminNotificationsMax
+	}
+	values, err := r.client.LRange(ctx, adminNotificationsKey, 0, int64(limit-1)).Result()
 	if err != nil {
 		return nil, err
 	}

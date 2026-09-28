@@ -15,7 +15,7 @@ type Broadcaster interface {
 
 type AdminNotificationService interface {
 	BookingCreated(ctx context.Context, booking *models.Booking) error
-	Recent(ctx context.Context) ([]json.RawMessage, error)
+	Recent(ctx context.Context, limit int) ([]json.RawMessage, error)
 }
 
 type adminNotificationService struct {
@@ -37,6 +37,6 @@ func (s *adminNotificationService) BookingCreated(ctx context.Context, booking *
 	return pushErr
 }
 
-func (s *adminNotificationService) Recent(ctx context.Context) ([]json.RawMessage, error) {
-	return s.notifications.Recent(ctx)
+func (s *adminNotificationService) Recent(ctx context.Context, limit int) ([]json.RawMessage, error) {
+	return s.notifications.Recent(ctx, limit)
 }
