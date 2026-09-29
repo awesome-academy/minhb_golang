@@ -24,6 +24,7 @@ type MovieRepository interface {
 	Create(ctx context.Context, movie *models.Movie, genreIDs []int64) error
 	Update(ctx context.Context, movie *models.Movie, genreIDs []int64, expectedUpdatedAt time.Time) error
 	Delete(ctx context.Context, id int64) error
+	PromoteNowShowing(ctx context.Context, from, to time.Time) (int64, error)
 }
 
 type movieRepository struct {
@@ -152,6 +153,15 @@ func (r *movieRepository) Delete(ctx context.Context, id int64) error {
 		}
 		return tx.Delete(&movie).Error
 	})
+}
+
+func (r *movieRepository) PromoteNowShowing(ctx context.Context, from, to time.Time) (int64, error) {
+	result := r.db.WithContext(ctx).Model(&models.Movie{}).
+		Where("status = ?", models.MovieStatusComingSoon).
+		Where("id IN (SELECT movie_id FROM showtimes WHERE status = ? AND is_published AND starts_at >= ? AND starts_at < ?)",
+			models.ShowtimeStatusScheduled, from, to).
+		Update("status", models.MovieStatusNowShowing)
+	return result.RowsAffected, result.Error
 }
 
 func replaceGenres(tx *gorm.DB, movieID int64, genreIDs []int64) error {
