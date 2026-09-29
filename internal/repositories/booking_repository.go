@@ -28,6 +28,7 @@ type CreateBookingInput struct {
 
 type BookingRepository interface {
 	Create(ctx context.Context, input CreateBookingInput) (*models.Booking, error)
+	FindDetail(ctx context.Context, id int64) (*models.Booking, error)
 	ExpireHolds(ctx context.Context) (int64, error)
 	ActiveByShowtime(ctx context.Context, showtimeID int64) ([]models.Booking, error)
 	CreateCounterSale(ctx context.Context, input CreateBookingInput) (*models.Booking, error)
@@ -85,6 +86,22 @@ func (r *bookingRepository) Create(ctx context.Context, input CreateBookingInput
 		return nil, err
 	}
 	return booking, nil
+}
+
+func (r *bookingRepository) FindDetail(ctx context.Context, id int64) (*models.Booking, error) {
+	var booking models.Booking
+	err := r.db.WithContext(ctx).
+		Preload("User").
+		Preload("Showtime.Movie", unscoped).
+		Preload("Showtime.Room", unscoped).
+		Preload("Showtime.Room.Theater", unscoped).
+		Preload("Tickets", func(db *gorm.DB) *gorm.DB { return db.Order("id") }).
+		Preload("Tickets.Seat").
+		First(&booking, "id = ?", id).Error
+	if err != nil {
+		return nil, err
+	}
+	return &booking, nil
 }
 
 func (r *bookingRepository) ExpireHolds(ctx context.Context) (int64, error) {

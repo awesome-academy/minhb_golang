@@ -174,3 +174,18 @@ dialog.booking-dialog {
 dialog.booking-dialog::backdrop {
   background: rgba(0, 0, 0, 0.4);
 }
+
+.notif-menu {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.25rem);
+  width: 22rem;
+  max-height: 24rem;
+  overflow-y: auto;
+  z-index: 1050;
+}
+
+.notif-menu.show {
+  display: block;
+}

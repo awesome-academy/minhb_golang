@@ -37,7 +37,7 @@ func NewBookingResponse(booking *models.Booking) BookingResponse {
 		ID:        booking.ID,
 		Code:      booking.Code,
 		ExpiresAt: expiresAt,
-		Total:     booking.Subtotal.Sub(booking.DiscountAmount).StringFixed(2),
+		Total:     booking.Total().StringFixed(2),
 		Tickets:   tickets,
 	}
 }

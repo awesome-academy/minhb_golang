@@ -6,6 +6,7 @@ import (
 	"cinema-booking/internal/handlers/admin"
 	"cinema-booking/internal/handlers/user"
 	"cinema-booking/internal/middleware"
+	"cinema-booking/internal/realtime"
 	"cinema-booking/internal/services"
 )
 
@@ -24,6 +25,8 @@ func RegisterRoutes(
 	adminSeatService services.AdminSeatService,
 	adminShowtimeService services.AdminShowtimeService,
 	adminBookingService services.AdminBookingService,
+	adminNotificationService services.AdminNotificationService,
+	adminHub *realtime.Hub,
 	adminCookie middleware.AdminSessionCookie,
 	adminSession echo.MiddlewareFunc,
 	userAuth echo.MiddlewareFunc,
@@ -51,6 +54,7 @@ func RegisterRoutes(
 		admin.NewSeatHandler(adminSeatService, adminCookie.Secure),
 		admin.NewShowtimeHandler(adminShowtimeService, adminCookie.Secure),
 		admin.NewBookingHandler(adminBookingService, adminCookie.Secure),
+		admin.NewNotificationHandler(adminNotificationService, adminHub),
 		adminSession,
 	)
 }
@@ -94,6 +98,7 @@ func registerAdminRoutes(
 	seats *admin.SeatHandler,
 	showtimes *admin.ShowtimeHandler,
 	bookings *admin.BookingHandler,
+	notifications *admin.NotificationHandler,
 	adminSession echo.MiddlewareFunc,
 ) {
 	g.GET("/login", auth.LoginPage)
@@ -134,4 +139,6 @@ func registerAdminRoutes(
 	protected.GET("/showtimes/:id/seats", bookings.SeatMap)
 	protected.POST("/showtimes/:id/counter-sales", bookings.Sell)
 	protected.POST("/bookings/:id/confirm", bookings.Confirm)
+	protected.GET("/notifications", notifications.Recent)
+	protected.GET("/notifications/ws", notifications.Socket)
 }

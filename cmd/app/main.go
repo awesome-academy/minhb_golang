@@ -13,6 +13,7 @@ import (
 	"cinema-booking/config"
 	"cinema-booking/internal/handlers"
 	appmw "cinema-booking/internal/middleware"
+	"cinema-booking/internal/realtime"
 	"cinema-booking/internal/repositories"
 	"cinema-booking/internal/services"
 	"cinema-booking/internal/user_auth"
@@ -101,6 +102,7 @@ func run() error {
 	bookingRepository := repositories.NewBookingRepository(database)
 	adminSessionRepository := repositories.NewAdminSessionRepository(redisClient, cfg.AdminSessionTTL)
 	userTokenRepository := repositories.NewUserTokenRepository(redisClient)
+	adminNotificationRepository := repositories.NewAdminNotificationRepository(redisClient)
 
 	// Services
 	tokenManager := userauth.NewTokenManager(cfg.JWTSecret, cfg.JWTAccessTTL)
@@ -109,7 +111,9 @@ func run() error {
 	userMovieService := services.NewUserMovieService(movieRepository)
 	userTheaterService := services.NewUserTheaterService(theaterRepository)
 	userShowtimeService := services.NewUserShowtimeService(movieRepository, theaterRepository, showtimeRepository, seatRepository, ticketRepository)
-	userBookingService := services.NewUserBookingService(bookingRepository)
+	adminHub := realtime.NewHub()
+	adminNotificationService := services.NewAdminNotificationService(adminNotificationRepository, adminHub)
+	userBookingService := services.NewUserBookingService(bookingRepository, adminNotificationService)
 	adminAuthService := services.NewAdminAuthService(userRepository, adminSessionRepository)
 	adminMovieService := services.NewAdminMovieService(movieRepository, genreRepository)
 	adminTheaterService := services.NewAdminTheaterService(theaterRepository)
@@ -139,6 +143,8 @@ func run() error {
 		adminSeatService,
 		adminShowtimeService,
 		adminBookingService,
+		adminNotificationService,
+		adminHub,
 		adminCookie,
 		adminSession,
 		userAuth,

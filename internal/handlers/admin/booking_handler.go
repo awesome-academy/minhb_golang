@@ -290,7 +290,7 @@ func bookingViews(bookings []models.Booking, seatsByBooking map[int64][]string) 
 			Customer: booking.User.FullName,
 			Email:    booking.User.Email,
 			Seats:    strings.Join(seatsByBooking[booking.ID], ", "),
-			Total:    booking.Subtotal.Sub(booking.DiscountAmount).StringFixed(2) + " " + booking.Currency,
+			Total:    booking.Total().StringFixed(2) + " " + booking.Currency,
 			Note:     derefString(booking.Note),
 		}
 		if booking.ExpiresAt != nil {
