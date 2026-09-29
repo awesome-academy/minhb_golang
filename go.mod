@@ -13,8 +13,10 @@ require (
 	github.com/redis/go-redis/v9 v9.22.0
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/shopspring/decimal v1.4.0
+	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/swaggo/echo-swagger/v2 v2.0.1
 	github.com/swaggo/swag/v2 v2.0.0-rc4
+	github.com/wneessen/go-mail v0.8.1
 	golang.org/x/crypto v0.55.0
 	golang.org/x/text v0.41.0
 	gorm.io/driver/postgres v1.6.2

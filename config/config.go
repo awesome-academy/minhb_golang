@@ -32,6 +32,12 @@ type Config struct {
 	HoldExpiryCron  string
 	MovieStatusCron string
 
+	SMTPHost     string
+	SMTPPort     int
+	SMTPUsername string
+	SMTPPassword string
+	MailFrom     string
+
 	LogLevel  string
 	LogFormat string
 }
@@ -65,6 +71,10 @@ func Load() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	smtpPort, err := getEnvInt("SMTP_PORT", 1025)
+	if err != nil {
+		return nil, err
+	}
 	logFormat := getEnv("LOG_FORMAT", "text")
 	cfg := &Config{
 		HTTPAddr:          getEnv("HTTP_ADDR", ":8080"),
@@ -80,6 +90,11 @@ func Load() (*Config, error) {
 		JWTAccessTTL:      jwtAccessTTL,
 		HoldExpiryCron:    getEnv("HOLD_EXPIRY_CRON", "* * * * *"),
 		MovieStatusCron:   getEnv("MOVIE_STATUS_CRON", "0 1 * * *"),
+		SMTPHost:          getEnv("SMTP_HOST", "localhost"),
+		SMTPPort:          smtpPort,
+		SMTPUsername:      os.Getenv("SMTP_USERNAME"),
+		SMTPPassword:      os.Getenv("SMTP_PASSWORD"),
+		MailFrom:          getEnv("MAIL_FROM", "Cinema Booking <no-reply@cinema.local>"),
 		LogLevel:          getEnv("LOG_LEVEL", "info"),
 		LogFormat:         logFormat,
 	}
