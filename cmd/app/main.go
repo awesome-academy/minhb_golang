@@ -110,9 +110,12 @@ func run() error {
 	adminNotificationRepository := repositories.NewAdminNotificationRepository(redisClient)
 
 	// Mailers
-	bookingMailer := mail.NewBookingMailer(mail.Options{
+	bookingMailer, err := mail.NewBookingMailer(mail.Options{
 		Host: cfg.SMTPHost, Port: cfg.SMTPPort, Username: cfg.SMTPUsername, Password: cfg.SMTPPassword, From: cfg.MailFrom,
 	}, mailTemplates)
+	if err != nil {
+		return err
+	}
 
 	// Services
 	tokenManager := userauth.NewTokenManager(cfg.JWTSecret, cfg.JWTAccessTTL)

@@ -21,7 +21,7 @@ internal/
 ├── user_auth/           # JWT cho user API: Claims, TokenManager (ký/parse HS256, jti, role)
 ├── dto/                 # Request/response DTO (json + validate + example tags)
 ├── errors/              # Sentinel error nghiệp vụ dùng chung (ErrInvalidCredentials, ErrEmailTaken...), import alias apperrors
-├── mail/                # Gửi email bằng gomail.v2: 2 mail cho booking online (tạo booking không QR, admin confirm thanh toán tại quầy kèm QR mỗi vé go-qrcode nhúng inline), gọi async
+├── mail/                # Gửi email bằng go-mail: 2 mail cho booking online (tạo booking không QR, admin confirm thanh toán tại quầy kèm QR mỗi vé go-qrcode nhúng inline), gọi async
 ├── middleware/          # AdminCSRF, AdminNoStore, RequireAdminSession, RequireUser (JWT), helper cookie AdminSessionCookie
 ├── handlers/            # routes.go duy nhất đăng ký mọi route, health handler, HTTP error handler
 │   ├── admin/           # Handler admin SSR (package admin)

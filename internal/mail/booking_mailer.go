@@ -4,12 +4,11 @@ import (
 	"bytes"
 	"context"
 	"html/template"
-	"io"
 	"strconv"
 	"time"
 
 	"github.com/skip2/go-qrcode"
-	"gopkg.in/gomail.v2"
+	"github.com/wneessen/go-mail"
 
 	"cinema-booking/internal/models"
 	"cinema-booking/internal/utils"
@@ -21,6 +20,7 @@ const (
 	mailTimeLayout         = "Mon 02 Jan 2006 15:04"
 	imageTimeLayout        = "2006-01-02-15h04"
 	qrSize                 = 256
+	implicitTLSPort        = 465
 )
 
 type Options struct {
@@ -32,17 +32,24 @@ type Options struct {
 }
 
 type BookingMailer struct {
-	dialer    *gomail.Dialer
+	client    *mail.Client
 	from      string
 	templates *template.Template
 }
 
-func NewBookingMailer(opts Options, templates *template.Template) *BookingMailer {
-	return &BookingMailer{
-		dialer:    gomail.NewDialer(opts.Host, opts.Port, opts.Username, opts.Password),
-		from:      opts.From,
-		templates: templates,
+func NewBookingMailer(opts Options, templates *template.Template) (*BookingMailer, error) {
+	clientOpts := []mail.Option{mail.WithPort(opts.Port), mail.WithTLSPolicy(mail.TLSOpportunistic)}
+	if opts.Port == implicitTLSPort {
+		clientOpts = append(clientOpts, mail.WithSSL())
 	}
+	if opts.Username != "" {
+		clientOpts = append(clientOpts, mail.WithSMTPAuth(mail.SMTPAuthAutoDiscover), mail.WithUsername(opts.Username), mail.WithPassword(opts.Password))
+	}
+	client, err := mail.NewClient(opts.Host, clientOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return &BookingMailer{client: client, from: opts.From, templates: templates}, nil
 }
 
 func (m *BookingMailer) SendBookingCreated(ctx context.Context, booking *models.Booking) error {
@@ -50,7 +57,7 @@ func (m *BookingMailer) SendBookingCreated(ctx context.Context, booking *models.
 	if err != nil {
 		return err
 	}
-	return m.send(ctx, msg)
+	return m.client.DialAndSendWithContext(ctx, msg)
 }
 
 func (m *BookingMailer) SendBookingPaid(ctx context.Context, booking *models.Booking) error {
@@ -61,43 +68,33 @@ func (m *BookingMailer) SendBookingPaid(ctx context.Context, booking *models.Boo
 	if err := embedTicketQRCodes(msg, booking); err != nil {
 		return err
 	}
-	return m.send(ctx, msg)
+	return m.client.DialAndSendWithContext(ctx, msg)
 }
 
-func (m *BookingMailer) newMessage(booking *models.Booking, subject, templateName string) (*gomail.Message, error) {
+func (m *BookingMailer) newMessage(booking *models.Booking, subject, templateName string) (*mail.Msg, error) {
 	var body bytes.Buffer
 	if err := m.templates.ExecuteTemplate(&body, templateName, newBookingView(booking)); err != nil {
 		return nil, err
 	}
-	msg := gomail.NewMessage()
-	msg.SetHeader("From", m.from)
-	msg.SetAddressHeader("To", booking.User.Email, booking.User.FullName)
-	msg.SetHeader("Subject", subject)
-	msg.SetBody("text/html", body.String())
+	msg := mail.NewMsg()
+	if err := msg.From(m.from); err != nil {
+		return nil, err
+	}
+	if err := msg.AddToFormat(booking.User.FullName, booking.User.Email); err != nil {
+		return nil, err
+	}
+	msg.Subject(subject)
+	msg.SetBodyString(mail.TypeTextHTML, body.String())
 	return msg, nil
 }
 
-func (m *BookingMailer) send(ctx context.Context, msg *gomail.Message) error {
-	done := make(chan error, 1)
-	go func() { done <- m.dialer.DialAndSend(msg) }()
-	select {
-	case err := <-done:
-		return err
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-}
-
-func embedTicketQRCodes(msg *gomail.Message, booking *models.Booking) error {
+func embedTicketQRCodes(msg *mail.Msg, booking *models.Booking) error {
 	for _, ticket := range booking.Tickets {
 		png, err := qrcode.Encode(ticket.QRCode, qrcode.Medium, qrSize)
 		if err != nil {
 			return err
 		}
-		msg.Embed(ticketImage(booking.Showtime, ticket), gomail.SetCopyFunc(func(w io.Writer) error {
-			_, err := w.Write(png)
-			return err
-		}))
+		msg.EmbedReadSeeker(ticketImage(booking.Showtime, ticket), bytes.NewReader(png))
 	}
 	return nil
 }
@@ -145,7 +142,7 @@ func newBookingView(booking *models.Booking) bookingView {
 		StartsAt:   utils.FormatVN(showtime.StartsAt, mailTimeLayout),
 		ExpiresAt:  formatOptional(booking.ExpiresAt),
 		PaidAt:     formatOptional(booking.ConfirmedAt),
-		Total:      booking.Subtotal.Sub(booking.DiscountAmount).StringFixed(2),
+		Total:      booking.Total().StringFixed(2),
 		Currency:   booking.Currency,
 		Tickets:    tickets,
 	}

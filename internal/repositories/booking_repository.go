@@ -91,7 +91,7 @@ func (r *bookingRepository) Create(ctx context.Context, input CreateBookingInput
 func (r *bookingRepository) FindDetail(ctx context.Context, id int64) (*models.Booking, error) {
 	var booking models.Booking
 	err := r.db.WithContext(ctx).
-		Preload("User").
+		Preload("User", unscoped).
 		Preload("Showtime.Movie", unscoped).
 		Preload("Showtime.Room", unscoped).
 		Preload("Showtime.Room.Theater", unscoped).
