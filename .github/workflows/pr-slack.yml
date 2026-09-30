@@ -1,0 +1,189 @@
+name: PR to Slack
+
+on:
+  # pull_request_target: luôn dùng workflow ở branch mặc định, kể cả với PR tạo trước khi workflow tồn tại
+  pull_request_target:
+    types: [opened, reopened, ready_for_review, assigned, review_requested, synchronize]
+  pull_request_review:
+    types: [submitted]
+  issue_comment:
+    types: [created]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    if: github.event_name != 'issue_comment' || github.event.issue.pull_request
+    env:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      SLACK_MENTION: ${{ vars.SLACK_MENTION }}
+      GH_PAT: ${{ secrets.GH_PAT }}
+      PROJECT_ORG: awesome-academy
+      PROJECT_NUMBER: "49"
+      PROJECT_URL: https://github.com/orgs/awesome-academy/projects/49
+      REVIEWING_STATUS: "Đang review"
+      SLACK_CHANNEL: ${{ vars.SLACK_CHANNEL }}
+      WAITING_STATUS: "Chờ review"
+      FIX_STATUS: "Cần sửa"
+      HAS_ASSIGNEE: ${{ github.event.pull_request.assignees[0].login != '' || github.event.pull_request.requested_reviewers[0].login != '' }}
+      EVENT: ${{ github.event_name }}
+      ACTION: ${{ github.event.action }}
+      REPO: ${{ github.repository }}
+      ACTOR: ${{ github.actor }}
+      PR_URL: ${{ github.event.pull_request.html_url || github.event.issue.html_url }}
+      PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+      PR_TITLE: ${{ github.event.pull_request.title || github.event.issue.title }}
+      PR_NODE_ID: ${{ github.event.pull_request.node_id }}
+      REVIEW_STATE: ${{ github.event.review.state }}
+      ASSIGNEE: ${{ github.event.assignee.login }}
+      PR_AUTHOR: ${{ github.event.pull_request.user.login || github.event.issue.user.login }}
+      REQUESTED_REVIEWER: ${{ github.event.requested_reviewer.login }}
+    steps:
+      - name: Send Slack notification
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "SLACK_WEBHOOK_URL is not set, skipping"; exit 0
+          fi
+          # SLACK_MENTION quy uoc: ID dau = chu repo (trainee), cac ID sau = trainer
+          IFS=',' read -ra IDS <<< "$SLACK_MENTION"
+          TRAINEE=""; TRAINERS=""; ALL=""
+          for i in "${!IDS[@]}"; do
+            id="$(echo "${IDS[$i]}" | xargs)"; [ -z "$id" ] && continue
+            ALL="$ALL<@$id> "
+            if [ "$i" = "0" ]; then TRAINEE="<@$id> "; else TRAINERS="$TRAINERS<@$id> "; fi
+          done
+          [ -z "$TRAINERS" ] && TRAINERS="$ALL"
+          [ -z "$TRAINEE" ] && TRAINEE="$ALL"
+          LINK="<$PR_URL|#$PR_NUMBER $PR_TITLE>"
+          case "$EVENT:$ACTION" in
+            pull_request_target:opened|pull_request_target:reopened|pull_request_target:ready_for_review)
+              TEXT=":bell: ${TRAINERS}PR mới trên *$REPO*: $LINK bởi *$ACTOR*";;
+            pull_request_target:assigned)
+              TEXT=":eyes: *$ASSIGNEE* đã nhận review $LINK";;
+            pull_request_target:review_requested)
+              TEXT=":eyes: *$REQUESTED_REVIEWER* được yêu cầu review $LINK";;
+            pull_request_review:*)
+              case "$REVIEW_STATE" in
+                approved)          VERB=":white_check_mark: đã *Approve*";;
+                changes_requested) VERB=":warning: yêu cầu *chỉnh sửa*";;
+                *)                 VERB=":memo: đã review (comment)";;
+              esac
+              TEXT="${TRAINEE}*$ACTOR* $VERB $LINK";;
+            issue_comment:*)
+              TARGET="$TRAINEE"; [ "$ACTOR" = "$PR_AUTHOR" ] && TARGET="$TRAINERS"
+              TEXT=":speech_balloon: ${TARGET}*$ACTOR* comment trên $LINK";;
+            pull_request_target:synchronize) echo "synchronize: handled in board step"; exit 0;;
+            *) echo "No message for $EVENT:$ACTION"; exit 0;;
+          esac
+          jq -n --arg t "$TEXT" '{text:$t}' | curl -s -X POST -H 'Content-type: application/json' --data @- "$SLACK_WEBHOOK_URL"
+
+      # Đưa PR vào project board "TI Training - PR Review". Cần secret GH_PAT có quyền Projects: Read & write (org).
+      - name: Add PR to project board
+        if: github.event_name == 'pull_request_target' && contains(fromJSON('["opened","reopened","ready_for_review"]'), github.event.action) && env.GH_PAT != ''
+        uses: actions/add-to-project@v1.0.2
+        continue-on-error: true
+        with:
+          project-url: ${{ env.PROJECT_URL }}
+          github-token: ${{ env.GH_PAT }}
+
+      # Ghi field "Channel" trên board để trainer lọc theo channel Slack
+      - name: Set Channel field on board
+        if: github.event_name == 'pull_request_target' && contains(fromJSON('["opened","reopened","ready_for_review"]'), github.event.action) && env.GH_PAT != '' && env.SLACK_CHANNEL != ''
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ env.GH_PAT }}
+        run: |
+          PROJECT=$(gh api graphql -F org="$PROJECT_ORG" -F n="$PROJECT_NUMBER" -f query='
+            query($org:String!,$n:Int!){ organization(login:$org){ projectV2(number:$n){ id
+              field(name:"Channel"){ ... on ProjectV2SingleSelectField { id options { id name } } } } } }')
+          PID=$(jq -r .data.organization.projectV2.id <<< "$PROJECT")
+          FID=$(jq -r '.data.organization.projectV2.field.id // empty' <<< "$PROJECT")
+          OID=$(jq -r --arg s "$SLACK_CHANNEL" '.data.organization.projectV2.field.options[]? | select(.name==$s) | .id' <<< "$PROJECT")
+          if [ -z "$FID" ] || [ -z "$OID" ]; then echo "Field Channel hoặc option '$SLACK_CHANNEL' chưa có trên board"; exit 0; fi
+          ITEM=$(gh api graphql -F id="$PR_NODE_ID" -f query='
+            query($id:ID!){ node(id:$id){ ... on PullRequest { projectItems(first:20){ nodes { id project { id } } } } } }' \
+            | jq -r --arg p "$PID" '.data.node.projectItems.nodes[] | select(.project.id==$p) | .id')
+          [ -n "$ITEM" ] || { echo "PR chưa có trên board"; exit 0; }
+          gh api graphql -F p="$PID" -F i="$ITEM" -F f="$FID" -F o="$OID" -f query='
+            mutation($p:ID!,$i:ID!,$f:ID!,$o:String!){ updateProjectV2ItemFieldValue(input:{projectId:$p, itemId:$i, fieldId:$f, value:{singleSelectOptionId:$o}}){ projectV2Item { id } } }' >/dev/null
+          echo "Channel = $SLACK_CHANNEL"
+
+      # assign / request review -> "Đang review" (chỉ khi đang Chờ review)
+      # bất kỳ ai không phải tác giả PR comment (review Comment hoặc comment ở Conversation) -> "Cần sửa"
+      - name: Move PR (assign -> Đang review, comment -> Cần sửa)
+        if: >-
+          env.GH_PAT != '' && (
+            (github.event_name == 'pull_request_target' && (github.event.action == 'assigned' || github.event.action == 'review_requested')) ||
+            (github.event_name == 'pull_request_review' && github.event.review.state == 'commented' && github.event.review.user.login != github.event.pull_request.user.login) ||
+            (github.event_name == 'issue_comment' && github.event.issue.pull_request && github.event.comment.user.login != github.event.issue.user.login)
+          )
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ env.GH_PAT }}
+        run: |
+          PROJECT=$(gh api graphql -F org="$PROJECT_ORG" -F n="$PROJECT_NUMBER" -f query='
+            query($org:String!,$n:Int!){ organization(login:$org){ projectV2(number:$n){ id
+              field(name:"Status"){ ... on ProjectV2SingleSelectField { id options { id name } } } } } }')
+          PID=$(jq -r .data.organization.projectV2.id <<< "$PROJECT")
+          FID=$(jq -r .data.organization.projectV2.field.id <<< "$PROJECT")
+          # assign / request review -> Đang review ; người khác tác giả comment (review hoặc conversation) -> Cần sửa
+          TARGET="$REVIEWING_STATUS"; [ "$EVENT" = "pull_request_review" ] || [ "$EVENT" = "issue_comment" ] && TARGET="$FIX_STATUS"
+          # issue_comment không có node_id của PR -> lấy qua API
+          if [ -z "$PR_NODE_ID" ]; then PR_NODE_ID=$(gh api "repos/$REPO/pulls/$PR_NUMBER" --jq .node_id); fi
+          OID=$(jq -r --arg s "$TARGET" '.data.organization.projectV2.field.options[] | select(.name==$s) | .id' <<< "$PROJECT")
+          [ -n "$OID" ] || { echo "Status option '$TARGET' not found on board"; exit 0; }
+
+          ITEMJSON=$(gh api graphql -F id="$PR_NODE_ID" -f query='
+            query($id:ID!){ node(id:$id){ ... on PullRequest { projectItems(first:20){ nodes { id project { id }
+              status: fieldValueByName(name:"Status"){ ... on ProjectV2ItemFieldSingleSelectValue { name } } } } } } }' \
+            | jq -c --arg p "$PID" '.data.node.projectItems.nodes[] | select(.project.id==$p)')
+          ITEM=$(jq -r '.id // empty' <<< "$ITEMJSON"); CUR=$(jq -r '.status.name // ""' <<< "$ITEMJSON")
+          echo "Current status: '$CUR' -> target '$TARGET'"
+          if [ "$TARGET" = "$REVIEWING_STATUS" ] && [ -n "$CUR" ] && [ "$CUR" != "$WAITING_STATUS" ]; then
+            echo "PR đang ở '$CUR', không chuyển về '$REVIEWING_STATUS'"; exit 0
+          fi
+          if [ "$TARGET" = "$FIX_STATUS" ] && [ "$CUR" = "$FIX_STATUS" ]; then echo "Đã ở '$FIX_STATUS'"; exit 0; fi
+          if [ -z "$ITEM" ]; then
+            echo "PR chưa có trên board, thêm vào trước"
+            ITEM=$(gh api graphql -F p="$PID" -F c="$PR_NODE_ID" -f query='
+              mutation($p:ID!,$c:ID!){ addProjectV2ItemById(input:{projectId:$p, contentId:$c}){ item { id } } }' \
+              | jq -r .data.addProjectV2ItemById.item.id)
+          fi
+          gh api graphql -F p="$PID" -F i="$ITEM" -F f="$FID" -F o="$OID" -f query='
+            mutation($p:ID!,$i:ID!,$f:ID!,$o:String!){ updateProjectV2ItemFieldValue(input:{projectId:$p, itemId:$i, fieldId:$f, value:{singleSelectOptionId:$o}}){ projectV2Item { id } } }' >/dev/null
+          echo "Moved PR #$PR_NUMBER to '$TARGET'"
+
+      # Trainee push code mới: nếu PR đang "Cần sửa" -> chuyển về "Chờ review" và báo trainer review lại
+      - name: Re-review after new commits
+        if: github.event_name == 'pull_request_target' && github.event.action == 'synchronize' && env.GH_PAT != ''
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ env.GH_PAT }}
+        run: |
+          PROJECT=$(gh api graphql -F org="$PROJECT_ORG" -F n="$PROJECT_NUMBER" -f query='
+            query($org:String!,$n:Int!){ organization(login:$org){ projectV2(number:$n){ id
+              field(name:"Status"){ ... on ProjectV2SingleSelectField { id options { id name } } } } } }')
+          PID=$(jq -r .data.organization.projectV2.id <<< "$PROJECT")
+          FID=$(jq -r .data.organization.projectV2.field.id <<< "$PROJECT")
+          TARGET_STATUS="$WAITING_STATUS"
+          OID=$(jq -r --arg s "$TARGET_STATUS" '.data.organization.projectV2.field.options[] | select(.name==$s) | .id' <<< "$PROJECT")
+
+          ITEMJSON=$(gh api graphql -F id="$PR_NODE_ID" -f query='
+            query($id:ID!){ node(id:$id){ ... on PullRequest { projectItems(first:20){ nodes { id project { id }
+              status: fieldValueByName(name:"Status"){ ... on ProjectV2ItemFieldSingleSelectValue { name } } } } } } }' \
+            | jq -c --arg p "$PID" '.data.node.projectItems.nodes[] | select(.project.id==$p)')
+          ITEM=$(jq -r .id <<< "$ITEMJSON"); CUR=$(jq -r '.status.name // ""' <<< "$ITEMJSON")
+          echo "Current status: '$CUR'"
+          if [ "$CUR" != "$FIX_STATUS" ]; then echo "Không ở '$FIX_STATUS', bỏ qua"; exit 0; fi
+
+          gh api graphql -F p="$PID" -F i="$ITEM" -F f="$FID" -F o="$OID" -f query='
+            mutation($p:ID!,$i:ID!,$f:ID!,$o:String!){ updateProjectV2ItemFieldValue(input:{projectId:$p, itemId:$i, fieldId:$f, value:{singleSelectOptionId:$o}}){ projectV2Item { id } } }' >/dev/null
+          echo "Moved PR #$PR_NUMBER: '$CUR' -> '$TARGET_STATUS'"
+
+          if [ -n "$SLACK_WEBHOOK_URL" ]; then
+            IFS=',' read -ra IDS <<< "$SLACK_MENTION"
+            MENTION=""; ALL=""
+            for i in "${!IDS[@]}"; do id="$(echo "${IDS[$i]}" | xargs)"; [ -z "$id" ] && continue; ALL="$ALL<@$id> "; [ "$i" != "0" ] && MENTION="$MENTION<@$id> "; done
+            [ -z "$MENTION" ] && MENTION="$ALL"
+            TEXT=":arrows_counterclockwise: ${MENTION}*$ACTOR* đã sửa và push lại <$PR_URL|#$PR_NUMBER $PR_TITLE> — mời review lại"
+            jq -n --arg t "$TEXT" '{text:$t}' | curl -s -X POST -H 'Content-type: application/json' --data @- "$SLACK_WEBHOOK_URL"
+          fi
